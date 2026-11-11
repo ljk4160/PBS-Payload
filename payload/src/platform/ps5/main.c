@@ -102,6 +102,7 @@ static int live_server_started;
 static char stream_failure[96];
 static int live_profile_ready;
 static int bitrate_after_start;
+static int applied_bitrate_kbps;
 
 static const char *fmt_rc(long rc);
 
@@ -288,7 +289,7 @@ static void pbs_audio_drain(FILE *f, pbs_inject_t *ctx, pbs_audio_t *audio, unsi
 }
 
 static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int seconds, int port, int width, int height, unsigned capture_feature, int audio_mode) {
-  if (seconds < 0 || seconds > 60) return -1;
+  if (seconds < 0 || seconds > 60) { fprintf(f, "capture_stream: invalid seconds=%d\n", seconds); return -1; }
   int serving = seconds == 0 || stress_live;
   int recover = 0;
   intptr_t start = pbs_resolve_in(ctx->pid, "libSceAvcap2.sprx", "sceAvcap2Start");
@@ -297,9 +298,27 @@ static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int secon
   intptr_t alloc = pbs_resolve_in(ctx->pid, "libSceLibcInternal.sprx", "malloc");
   intptr_t release = pbs_resolve_in(ctx->pid, "libSceLibcInternal.sprx", "free");
   intptr_t request_key = pbs_resolve_in(ctx->pid, "libSceAvcap2.sprx", "sceAvcap2RequestKeyFrame");
-  if (!start || !stop || !read || !alloc || !release) return -1;
+  if (!start || !stop || !read || !alloc || !release) {
+    fprintf(f, "capture_stream: export resolution failed (start=%p stop=%p read=%p alloc=%p release=%p)\n",
+            (void *)(uintptr_t)start, (void *)(uintptr_t)stop, (void *)(uintptr_t)read,
+            (void *)(uintptr_t)alloc, (void *)(uintptr_t)release);
+    return -1;
+  }
   long buffer = capture_call_fast(ctx, alloc, (uint64_t[6]){0x200000, 0, 0, 0, 0, 0});
-  if (buffer <= 0) return -1;
+  if (buffer <= 0) {
+    /* SceRemotePlay's heap fragments after many capture restarts and its
+     * malloc(2MB) starts returning 0. Fall back to the worker-reserved frame
+     * buffer allocated once at boot from the same MAP_ANON pool; the capture
+     * restart cycle then never allocates from the target heap again. */
+    buffer = pbs_ps5_worker_frame_buffer();
+    if (buffer > 0) {
+      fprintf(f, "capture_stream: target malloc failed; using worker frame buffer at %p\n",
+              (void *)(uintptr_t)buffer);
+    } else {
+      fprintf(f, "capture_stream: frame buffer alloc failed rc=0 and no worker fallback\n");
+      return -1;
+    }
+  }
   unsigned char *frame = malloc(0x200000);
   if (!frame) goto capture_free;
   FILE *out = fopen("/data/pbs/h264.stream", "wb");
@@ -346,7 +365,18 @@ static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int secon
             int server_rc = pbs_h264_server_start(port, width, height, metadata + 0x18, sps_len, metadata + 0xa0, pps_len);
             int bound_port = server_rc ? 0 : pbs_h264_server_port();
             fprintf(f, "H.264 HTTP :%d -> %d\n", port, server_rc);
-            if (!server_rc) {
+            if (server_rc) {
+              /* A failed bind used to fall through to the timed loop, which
+               * exited immediately and silently: the payload quit right
+               * after OpenVideo with no diagnosis. Say it out loud so the
+               * log carries the cause (typically the port still held by a
+               * just-replaced instance in kernel TIME_WAIT). */
+              fprintf(f, "HTTP server bind failed on port %d (errno=%d)\n",
+                      port, errno);
+              snprintf(stream_failure, sizeof stream_failure,
+                       "PBS: HTTP bind failed on port %d", port);
+              notify(stream_failure);
+            } else {
               const int first_start = !live_server_started;
               live_server_started = 1;
               live_profile_ready = 1;
@@ -368,9 +398,6 @@ static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int secon
                            "PBS started successfully\nStreaming and web dashboard ready on port %d", bound_port);
                 notify(ready_message);
               }
-            } else {
-              snprintf(stream_failure, sizeof stream_failure,
-                       "PBS: no free port %d-%d", port, port + PBS_H264_PORT_SCAN - 1);
             }
           }
         } else fprintf(f, "unexpected SPS/PPS metadata layout\n");
@@ -385,6 +412,19 @@ static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int secon
                     : capture_clock_ms() < until) && !ctx->asserted) {
       if (serving && pbs_h264_take_restart_request()) { recover = 1; fprintf(f, "capture restart requested\n"); break; }
       int key_requested = serving && pbs_h264_take_keyframe_request();
+      /* Live bitrate ceiling from the web UI: apply once per change, then a
+       * keyframe forces the new rate to take effect immediately. */
+      if (serving && request_key) {
+        int cap_kbps = pbs_h264_take_bitrate_request();
+        if (cap_kbps && cap_kbps != applied_bitrate_kbps) {
+          requested_video_bitrate = (uint32_t)cap_kbps * 1000;
+          requested_video_budget = requested_video_bitrate;
+          set_video_bitrate(f, ctx, handle);
+          applied_bitrate_kbps = cap_kbps;
+          fprintf(f, "Bitrate cap applied: %d kbps\n", cap_kbps);
+          pbs_h264_request_keyframe();
+        }
+      }
       int stress_key = (!serving || stress_live) && stress_keyframe_period &&
                       frames % stress_keyframe_period == 0 && frames != last_stress_key_frame;
       if (request_key && (key_requested || stress_key)) {
@@ -575,6 +615,50 @@ int main(int argc, char **argv) {
   if (mkdir(PBS_DATA_DIR, 0777) && errno != EEXIST) {
     notify("PBS: cannot create /data/pbs");
     return 1;
+  }
+  /* Replace any previous PBS instance instead of fighting it for port 9999
+   * and the encoder: repeated injections used to leave two live payloads
+   * sharing one avcap2 session (0x81950008 storm, port drift to 10000).
+   * The process name comes from elfldr's argv[0] ("payload.elf" for raw
+   * uploads, the ELF filename otherwise); pids reported by sysctl exclude
+   * nothing, so skip our own pid and never self-terminate. */
+  {
+    pid_t pids[16];
+    int count = pbs_find_all_pids(argv[0], pids, 16);
+    pid_t self = getpid();
+    int killed = 0;
+    for (int i = 0; i < count; i++) {
+      if (pids[i] == self || pids[i] <= 0) continue;
+      kill(pids[i], SIGKILL);
+      killed++;
+    }
+    if (killed) {
+      /* The dying instance releases the listener and its avcap2 session on
+       * process teardown. A fixed delay loses the race sometimes: the old
+       * listener socket can still sit in the kernel while the new instance
+       * binds, which failed silently and quit the payload. Instead of
+       * guessing, probe-bind the target port until it accepts or give up
+       * after 10 seconds (the port scan still offers fallbacks). */
+      const uint16_t probe_port = 9999;
+      for (int wait_ms = 0; wait_ms < 10000; wait_ms += 200) {
+        usleep(200000);
+        int probe = socket(AF_INET, SOCK_STREAM, 0);
+        if (probe < 0) continue;
+        int yes = 1; setsockopt(probe, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes);
+        struct sockaddr_in addr = {.sin_family = AF_INET,
+                                   .sin_port = htons(probe_port),
+                                   .sin_addr.s_addr = htonl(INADDR_ANY)};
+        int can_bind = !bind(probe, (struct sockaddr *)&addr, sizeof addr);
+        close(probe);
+        if (can_bind) break;
+      }
+      FILE *rk = open_report("inject.txt", "a");
+      if (rk) {
+        fprintf(rk, "PBS replace: killed %d previous instance(s) of %s\n", killed, argv[0]);
+        fclose(rk);
+      }
+      notify("PBS: replaced previous instance");
+    }
   }
   FILE *startup_report = open_report("inject.txt", "a");
   if (startup_report) {
@@ -1003,6 +1087,23 @@ avopen_cleanup:;
                                    opened_session, server_running)) {
       usleep(250000);
       if (pbs_h264_server_running()) goto avopen_retry;
+    }
+    if (live_request && live_server_started && !ctx.asserted) {
+      /* Park instead of exiting: the HTTP listener stays up, the web
+       * dashboard shows "stopped" and POST /capture/start resumes capture
+       * in-place — no re-injection, no elfldr reflash, no console reboot. */
+      pbs_h264_server_wait();
+      int resumed = 0;
+      while (!resumed) {
+        if (pbs_h264_park_until_resume(9999)) break; /* listener lost */
+        pbs_h264_server_wait();
+        fprintf(f, "PBS resume requested; reopening capture\n");
+        notify("PBS resumed\nRestarting capture");
+        live_server_started = 0;
+        goto avopen_retry;
+      }
+      notify("PBS: listener lost; re-inject to restart");
+      return 1;
     }
     if (live_request) { pbs_h264_server_stop(); pbs_h264_server_wait(); }
     pbs_input_shutdown();

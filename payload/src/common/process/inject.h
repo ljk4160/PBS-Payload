@@ -48,6 +48,7 @@ typedef struct {
 
 /* Find a process by name. */
 pid_t pbs_find_pid(const char *name);
+int pbs_find_all_pids(const char *name, pid_t *out, int max);
 #ifdef PBS_PS4
 /* Read-only process birth epoch from kinfo_proc. Returns 0 if unavailable.
  * Used to bind global RemotePlay capture ownership to a specific process

@@ -123,6 +123,26 @@ pid_t pbs_find_pid(const char *name) {
   return found;
 }
 
+int pbs_find_all_pids(const char *name, pid_t *out, int max) {
+  int count = 0;
+  int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PROC, 0};
+  size_t size = 0;
+  if (sysctl(mib, 4, NULL, &size, NULL, 0)) return -1;
+  void *buf = malloc(size);
+  if (!buf) return -1;
+  if (sysctl(mib, 4, buf, &size, NULL, 0)) {
+    free(buf);
+    return -1;
+  }
+  for (unsigned char *p = buf; p < (unsigned char *)buf + size && count < max;) {
+    struct kinfo_proc *ki = (struct kinfo_proc *)p;
+    p += ki->ki_structsize;
+    if (!strcmp(ki->ki_comm, name)) out[count++] = ki->ki_pid;
+  }
+  free(buf);
+  return count;
+}
+
 #ifdef PBS_PS4
 uint64_t pbs_process_birth_epoch(pid_t pid) {
   if (pid <= 0) return 0;

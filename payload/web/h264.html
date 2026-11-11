@@ -101,16 +101,112 @@ dialog::backdrop{background:rgba(0,0,0,.8)}.preview-heading{display:flex;align-i
 @media(max-width:500px){.player-resolution{top:8px;right:8px;padding:4px 6px}.player-resolution label{font-size:12px}.player-resolution select{font-size:14px;padding:4px}.player-resolution button{font-size:12px;padding:4px 8px}.player-resolution p{max-width:220px;font-size:11px}}
 </style></head>
 <body><header><img class="mark" alt="PBS" width="36" height="36" src="data:image/png;base64,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"><h1>PBS Studio</h1><span class="chip" id="platform">Console live · Hardware H.264</span><span class="spacer"></span><span class="chip" id="stats"></span><span class="chip" id="latency"></span><span class="chip" id="audiostats"></span></header><main>
-<div class="video-shell"><pbs-video-player id="player"><live-video-skin><video id="video" muted playsinline></video><div id="profile-controls" class="player-resolution" hidden><label>Resolution <select id="resolution" aria-label="Stream resolution"></select></label><button id="apply-resolution">Apply</button><p id="profile-info" aria-live="polite"></p></div><div class="banner"><img src="/banner.png" alt="" onerror="this.parentNode.remove()"></div></live-video-skin></pbs-video-player></div>
-<div class="dock"><div class="group"><button id="record">Record</button><button id="snapshot">Save snapshot</button><a class="btn" id="download" hidden>Download recording</a></div><div class="group grow audio-controls"><label>Audio delay <input id="delay" type="range" min="0" max="400" step="10" value="120"> <span id="delayval">120 ms</span></label></div></div>
+<div class="video-shell"><pbs-video-player id="player"><live-video-skin><video id="video" muted playsinline></video><div id="profile-controls" class="player-resolution" hidden><label><span data-i18n="resolution">Resolution</span> <select id="resolution" aria-label="Stream resolution"></select></label><button id="apply-resolution">Apply</button><p id="profile-info" aria-live="polite"></p></div><div class="banner"><img src="/banner.png" alt="" onerror="this.parentNode.remove()"></div></live-video-skin></pbs-video-player></div>
+<div class="dock"><div class="group"><button id="record">Record</button><button id="snapshot">Save snapshot</button><a class="btn" id="download" hidden>Download recording</a></div><div class="group grow audio-controls"><label data-i18n="audioDelay">Audio delay <input id="delay" type="range" min="0" max="400" step="10" value="120"> <span id="delayval">120 ms</span></label><label data-i18n="bitrateCap">Bitrate cap <select id="bitrate"><option value="0" data-i18n="bitrateAuto">Default (60 Mbps)</option><option value="20000">20 Mbps</option><option value="10000">10 Mbps</option><option value="5000">5 Mbps</option><option value="2000">2 Mbps</option></select></label><label>Language <select id="lang"><option value="en">English</option><option value="zh">中文</option></select></label></div></div>
 
-<section id="controller-controls" class="storage-settings" tabindex="0" aria-label="PS5 remote controller" hidden><h2>Remote controller</h2><button id="connect-controller">Connect controller</button><button id="disconnect-controller" hidden>Disconnect controller</button><p id="controller-info" role="status"></p><p>Click this area for keyboard control: WASD moves, IJKL looks, arrows navigate; X/Space = Cross, C = Circle, Z = Square, V = Triangle, Q/E = L1/R1, R/F = L2/R2, Enter = Options, P = PS, T = Touchpad click. Hold the right mouse button over the video to look. Standard gamepads are supported when available in your browser.</p></section>
-<details class="storage-settings"><summary>Recording storage</summary><label>Console directory <input id="record-directory" type="text" maxlength="255" autocomplete="off" spellcheck="false"></label><button id="save-directory">Save destination</button><p id="storage-info" role="status">Loading destination...</p></details>
-<dialog id="preview-dialog"><div class="preview-heading"><strong id="preview-title">Preview</strong><button id="close-preview">Close preview</button></div><p id="preview-status" role="status"></p><div id="preview-content"></div><a id="preview-download" class="btn" download>Download</a></dialog>
-<dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-description"><h2 id="delete-title">Delete recording?</h2><p id="delete-description"></p><form method="dialog"><button value="cancel" autofocus>Cancel</button><button value="delete">Delete recording</button></form></dialog>
-<p id="record-info" aria-live="polite">Not recording</p><h2>Recordings</h2><div class="recordings" id="recordings">Loading recordings…</div>
-<div class="foot"><p id="message">Connecting to the console…</p><button id="stop">Stop streaming</button><small>Stops the live feed and releases capture resources. Captured and recorded on your console, no Remote Play client needed.</small></div>
+<section id="controller-controls" class="storage-settings" tabindex="0" aria-label="PS5 remote controller" hidden><h2 data-i18n="remoteController">Remote controller</h2><button id="connect-controller" data-i18n="connectController">Connect controller</button><button id="disconnect-controller" hidden data-i18n="disconnectController">Disconnect controller</button><p id="controller-info" role="status"></p><p data-i18n="controllerHelp">Click this area for keyboard control: WASD moves, IJKL looks, arrows navigate; X/Space = Cross, C = Circle, Z = Square, V = Triangle, Q/E = L1/R1, R/F = L2/R2, Enter = Options, P = PS, T = Touchpad click. Hold the right mouse button over the video to look. Standard gamepads are supported when available in your browser.</p></section>
+<details class="storage-settings"><summary data-i18n="recordingStorage">Recording storage</summary><label><span data-i18n="consoleDirectory">Console directory</span> <input id="record-directory" type="text" maxlength="255" autocomplete="off" spellcheck="false"></label><button id="save-directory" data-i18n="saveDestination">Save destination</button><p id="storage-info" role="status" data-i18n="loadingDestination">Loading destination...</p></details>
+<dialog id="preview-dialog"><div class="preview-heading"><strong id="preview-title" data-i18n="previewTitle">Preview</strong><button id="close-preview">Close preview</button></div><p id="preview-status" role="status"></p><div id="preview-content"></div><a id="preview-download" class="btn" download>Download</a></dialog>
+<dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-description"><h2 id="delete-title" data-i18n="deleteTitle">Delete recording?</h2><p id="delete-description"></p><form method="dialog"><button value="cancel" autofocus data-i18n="deleteCancel">Cancel</button><button value="delete" data-i18n="deleteConfirm">Delete recording</button></form></dialog>
+<p id="record-info" aria-live="polite" data-i18n="notRecording">Not recording</p><h2 data-i18n="recordings">Recordings</h2><div class="recordings" id="recordings">Loading recordings…</div>
+<div class="foot"><p id="message">Connecting to the console…</p><button id="resume" hidden data-i18n="resumeStream">Resume streaming</button><button id="stop">Stop streaming</button><small>Stops the live feed and releases capture resources. Captured and recorded on your console, no Remote Play client needed.</small></div>
 </main><script>
+/* --- i18n: zh/en UI dictionary; choice persists in localStorage --- */
+const PBS_I18N={
+ zh:{
+  title:'PBS Studio · 主机直播',brand:'PBS Studio',platform:'主机直播 · 硬件 H.264',
+  record:'录制',recordStop:'停止录制',snapshot:'保存截图',download:'下载录像',
+  audioDelay:'音频延迟',bitrateCap:'码率上限',bitrateAuto:'默认 (60 Mbps)',
+  resolution:'分辨率',apply:'应用',lang:'语言',
+  remoteController:'远程手柄',connectController:'连接手柄',disconnectController:'断开手柄',
+  controllerHelp:'点击此区域启用键盘控制：WASD 移动，IJKL 视角，方向键导航；X/空格 = 叉，C = 圆圈，Z = 方块，V = 三角，Q/E = L1/R1，R/F = L2/R2，回车 = Options，P = PS 键，T = 触摸板点击。在视频上按住鼠标右键转动视角。支持浏览器标准手柄。',
+  resumeStream:'恢复直播',parkedMsg:'直播已停止。点击“恢复直播”继续，无需重新注入。',parkedBanner:'已驻留待命',recordingStorage:'录制存储',consoleDirectory:'主机目录',saveDestination:'保存目的地',
+  ctrlCleanupFailed:'手柄清理失败。请停止直播并检查 controller.log 后重连。',ctrlExpired:'手柄会话已过期。请重新连接。',ctrlInUse:'手柄正被另一个查看器使用。',ctrlConnectHint:'连接虚拟手柄来控制 PS5。',
+  loadingDestination:'正在读取目的地...',savedOnConsole:'已保存在主机：',
+  recordings:'录像列表',noRecordings:'还没有录像',preview:'预览',del:'删除',
+  deleteTitle:'删除这段录像？',deleteCancel:'取消',deleteConfirm:'删除录像',
+  notRecording:'未在录制',recording:'录制中',saved:'已保存',
+  recordingFailed:'录制失败：无法写入主机。',
+  connecting:'正在连接主机...',connectionLost:'连接中断，正在重连...',
+  reconnecting:'正在重连主机...',streamStopped:'直播已停止，采集资源已释放。',
+  stopStream:'停止直播',stopHint:'停止直播并释放采集资源。采集与录制都在主机上完成，无需 Remote Play 客户端。',
+  previewTitle:'预览',closePreview:'关闭预览',downloadLbl:'下载',
+  deleteConfirmText:'要从 {dir} 删除 {name} 吗？此操作不可撤销。',
+  activeProfile:'当前：{h}p。',applyingProfile:'正在应用分辨率，重连直播流...',
+  profileError:'{h}p 无法启动。已恢复 {cur}p。请检查主机视频输出。',
+  stopBeforeProfile:'录制期间不能改分辨率，请先停止录制。',
+  kbitUnit:'kbit/s',msUnit:'ms',mbUnit:' MB',
+  unavailable:'Status unavailable',recordCmdFailed:'录制命令执行失败。',
+  stopFailed:'无法停止：',resFail:'分辨率切换失败。',delFail:'删除失败',
+  dirFailSave:'无法保存目的地'
+ },
+ en:{
+  title:'PBS Studio · Console live',brand:'PBS Studio',platform:'Console live · Hardware H.264',
+  record:'Record',recordStop:'Stop recording',snapshot:'Save snapshot',download:'Download recording',
+  audioDelay:'Audio delay',bitrateCap:'Bitrate cap',bitrateAuto:'Default (60 Mbps)',
+  resolution:'Resolution',apply:'Apply',lang:'Language',
+  remoteController:'Remote controller',connectController:'Connect controller',disconnectController:'Disconnect controller',
+  controllerHelp:'Click this area for keyboard control: WASD moves, IJKL looks, arrows navigate; X/Space = Cross, C = Circle, Z = Square, V = Triangle, Q/E = L1/R1, R/F = L2/R2, Enter = Options, P = PS, T = Touchpad click. Hold the right mouse button over the video to look. Standard gamepads are supported when available in your browser.',
+  resumeStream:'Resume streaming',parkedMsg:'Streaming stopped. Click "Resume streaming" to continue — no re-injection needed.',parkedBanner:'Parked',recordingStorage:'Recording storage',consoleDirectory:'Console directory',saveDestination:'Save destination',
+  ctrlCleanupFailed:'Controller cleanup failed. Stop streaming and check controller.log before reconnecting.',ctrlExpired:'Controller session expired. Connect again to resume.',ctrlInUse:'Controller is in use by another viewer.',ctrlConnectHint:'Connect a virtual controller to control the PS5.',
+  loadingDestination:'Loading destination...',savedOnConsole:'Saved on the console: ',
+  recordings:'Recordings',noRecordings:'No recordings yet',preview:'Preview',del:'Delete',
+  deleteTitle:'Delete recording?',deleteCancel:'Cancel',deleteConfirm:'Delete recording',
+  notRecording:'Not recording',recording:'Recording',saved:'Saved',
+  recordingFailed:'Recording failed: unable to write to the console.',
+  connecting:'Connecting to the console…',connectionLost:'Connection lost. Reconnecting...',
+  reconnecting:'Reconnecting to the console...',streamStopped:'Stream stopped. Capture resources have been released.',
+  stopStream:'Stop streaming',stopHint:'Stops the live feed and releases capture resources. Captured and recorded on your console, no Remote Play client needed.',
+  previewTitle:'Preview',closePreview:'Close preview',downloadLbl:'Download',
+  deleteConfirmText:'Delete {name} from {dir}? This cannot be undone.',
+  activeProfile:'Active: {h}p.',applyingProfile:'Applying resolution; reconnecting the stream...',
+  profileError:'{h}p could not start. Restored {cur}p. Check the console video output.',
+  stopBeforeProfile:'Stop recording before changing resolution.',
+  kbitUnit:'kbit/s',msUnit:' ms',mbUnit:' MB',
+  unavailable:'Status unavailable',recordCmdFailed:'The recording command failed.',
+  stopFailed:'Unable to stop: ',resFail:'Resolution change failed.',delFail:'Unable to delete',
+  dirFailSave:'Unable to save destination'
+ }
+};
+let pbsLang=localStorage.getItem('pbs-lang')||'en';
+function bitrateAutoText(){const opt=document.querySelector('#bitrate option[value="0"]');if(opt)opt.textContent=t('bitrateAuto');}
+function t(key,vars){let s=(PBS_I18N[pbsLang]&&PBS_I18N[pbsLang][key])||PBS_I18N.en[key]||key;
+ if(vars)for(const k in vars)s=s.replace('{'+k+'}',vars[k]);return s;}
+function applyLang(){
+ document.documentElement.lang=pbsLang==='zh'?'zh-CN':'en';
+ document.title=t('title');
+ document.querySelector('h1').textContent=t('brand');
+ document.getElementById('platform').textContent=t('platform');
+ for(const el of document.querySelectorAll('[data-i18n]')){
+  const k=el.getAttribute('data-i18n');if(!PBS_I18N[pbsLang][k]&&!PBS_I18N.en[k])continue;
+  if(el.tagName==='LABEL'){ // rebuild label keeping inner controls intact
+  const ctrl=el.querySelector('input,select');
+  if(!ctrl)return;
+  const idx=el.innerHTML.indexOf('<'+ctrl.tagName.toLowerCase());
+  const ctrlHtml=idx>=0?el.innerHTML.slice(idx):'';
+  el.innerHTML=t(k)+' '+ctrlHtml;
+  if(ctrl.id==='delay')document.getElementById('delayval').textContent=Number(ctrl.value)+t('msUnit');
+  if(ctrl.id==='bitrate')bitrateAutoText();
+ } else el.textContent=t(k);
+ }
+ const map={'record':'record','snapshot':'snapshot','download':'download','apply-resolution':'apply','stop':'stopStream',
+  'connect-controller':'connectController','disconnect-controller':'disconnectController','save-directory':'saveDestination','close-preview':'closePreview','preview-download':'downloadLbl'};
+ for(const id in map){const el=document.getElementById(id);if(el)el.textContent=t(map[id]);}
+ for(const el of document.querySelectorAll('[data-i18n]')){
+  if(el.tagName==='LABEL')continue;
+  el.textContent=t(el.getAttribute('data-i18n'));
+ }
+ document.querySelector('#profile-controls label span[data-i18n]').textContent=t('resolution');
+ const stopHint=document.querySelector('.foot small');if(stopHint)stopHint.textContent=t('stopHint');
+ const msg=document.getElementById('message');
+ if(!stopped&&msg.textContent)msg.textContent=t('connecting');
+ const ri=document.getElementById('record-info');if(ri.textContent==='Not recording'||ri.textContent==='未在录制')ri.textContent=t('notRecording');
+ const si=document.getElementById('storage-info');if(si.textContent==='Loading destination...'||si.textContent==='正在读取目的地...')si.textContent=t('loadingDestination');
+ const lang=document.getElementById('lang');if(lang.value!==pbsLang)lang.value=pbsLang;
+ window.dispatchEvent(new Event('pbs-langchange'));
+}
+window.pbsT=t;
+</script><script>
 /*PBS_MUX*/
 window.pbsMux=H264Mux;
 </script><script>
@@ -156,14 +252,14 @@ async function refreshProfiles(){
  const disabled=profileBusy||recording;
  if(resolution.disabled!==disabled)resolution.disabled=disabled;
  if(applyResolution.disabled!==disabled)applyResolution.disabled=disabled;
- const text=c.profile_error?(c.profile_error_height?c.profile_error_height+'p could not start. ':'')+'Restored '+c.height+'p. Check the console video output.':profileBusy?'Applying resolution; reconnecting the stream...':recording?'Stop recording before changing resolution.':'Active: '+c.height+'p.';
+ const text=c.profile_error?(c.profile_error_height?window.pbsT('profileError',{h:c.profile_error_height,cur:c.height}):''):profileBusy?window.pbsT('applyingProfile'):recording?window.pbsT('stopBeforeProfile'):window.pbsT('activeProfile',{h:c.height});
  profileInfo.hidden=!(c.profile_error||profileBusy||recording);
  if(profileInfo.textContent!==text)profileInfo.textContent=text;
  }finally{profilesFetching=false;}
 }
 applyResolution.onclick=async()=>{
  applyResolution.disabled=resolution.disabled=true;
- try{const r=await fetchWithTimeout('/capture/profile?height='+encodeURIComponent(resolution.value),{method:'POST'});const body=await r.json();if(!r.ok)throw new Error(body.message||'Resolution change failed.');await refreshProfiles();}
+ try{const r=await fetchWithTimeout('/capture/profile?height='+encodeURIComponent(resolution.value),{method:'POST'});const body=await r.json();if(!r.ok)throw new Error(body.message||window.pbsT('resFail'));await refreshProfiles();}
  catch(e){profileInfo.textContent=e.message;applyResolution.disabled=resolution.disabled=false;}
 };
 let recordingDirectory='';
@@ -172,21 +268,21 @@ async function refreshStorage(){
  const settings=await r.json();recordingDirectory=settings.directory||'';
  const input=document.getElementById('record-directory');
  if(document.activeElement!==input)input.value=recordingDirectory;
- document.getElementById('storage-info').textContent='Saved on the console: '+recordingDirectory;
+ document.getElementById('storage-info').textContent=window.pbsT('savedOnConsole')+recordingDirectory;
  input.disabled=document.getElementById('save-directory').disabled=!!settings.recording;
 }
 document.getElementById('save-directory').onclick=async()=>{
  const button=document.getElementById('save-directory');button.disabled=true;
  try{
   const r=await fetchWithTimeout('/recording/settings?path='+encodeURIComponent(document.getElementById('record-directory').value),{method:'POST'});
-  const result=await r.json();if(!r.ok)throw new Error(result.message||'Unable to save destination');
+  const result=await r.json();if(!r.ok)throw new Error(result.message||window.pbsT('dirFailSave'));
   await refreshStorage();await listRecordings();
  }catch(e){document.getElementById('storage-info').textContent=e.message;}
  finally{button.disabled=false;}
 };
 function confirmRecordingDelete(name,directory){
  const dialog=document.getElementById('delete-dialog');
- document.getElementById('delete-description').textContent='Delete '+name+' from '+directory+'? This cannot be undone.';
+ document.getElementById('delete-description').textContent=window.pbsT('deleteConfirmText',{name,directory});
  return new Promise(resolve=>{
   dialog.addEventListener('close',()=>resolve(dialog.returnValue==='delete'),{once:true});
   dialog.returnValue='cancel';dialog.showModal();
@@ -199,29 +295,31 @@ async function listRecordings(){
  for(const item of items.reverse()){
   const card=document.createElement('div');card.className='recording-card';
   const title=document.createElement('span');title.textContent=item.name+' · '+(item.bytes/1048576).toFixed(1)+' MB';
-  const link=document.createElement('a');link.href='/recordings/'+encodeURIComponent(item.name)+'?directory='+encodeURIComponent(directory);link.download=item.name;link.textContent='Download';
-  const preview=document.createElement('button');preview.textContent='Preview';preview.disabled=!!item.active;
+  const link=document.createElement('a');link.href='/recordings/'+encodeURIComponent(item.name)+'?directory='+encodeURIComponent(directory);link.download=item.name;link.textContent=window.pbsT('downloadLbl');
+  const preview=document.createElement('button');preview.textContent=window.pbsT('preview');preview.disabled=!!item.active;
   preview.onclick=()=>window.pbsPreview.recording(item.name,directory);
-  const remove=document.createElement('button');remove.textContent='Delete';remove.disabled=!!item.active;
+  const remove=document.createElement('button');remove.textContent=window.pbsT('del');remove.disabled=!!item.active;
   remove.onclick=async()=>{
    remove.disabled=true;
-   try{if(!await confirmRecordingDelete(item.name,directory))return;const r=await fetchWithTimeout('/recordings/'+encodeURIComponent(item.name)+'?directory='+encodeURIComponent(directory),{method:'DELETE'});const result=await r.json();if(!r.ok)throw new Error(result.message||'Unable to delete');await listRecordings();}
+   try{if(!await confirmRecordingDelete(item.name,directory))return;const r=await fetchWithTimeout('/recordings/'+encodeURIComponent(item.name)+'?directory='+encodeURIComponent(directory),{method:'DELETE'});const result=await r.json();if(!r.ok)throw new Error(result.message||window.pbsT('delFail'));await listRecordings();}
    catch(e){document.getElementById('record-info').textContent=e.message;}
    finally{remove.disabled=false;}
   };
   card.appendChild(title);card.appendChild(preview);card.appendChild(link);card.appendChild(remove);panel.appendChild(card);
  }
- if(!items.length)panel.textContent='No recordings yet';
+ if(!items.length)panel.textContent=window.pbsT('noRecordings');
 }
 async function updateStatus(){
  if(statusBusy||stopped)return;statusBusy=true;
- try{const response=await fetchWithTimeout('/status.json');if(!response.ok)throw new Error('Status unavailable');const s=await response.json();recording=s.recording;const recordLabel=recording?'Stop recording':'Record';if(record.textContent!==recordLabel)record.textContent=recordLabel;record.classList.toggle('active',recording);document.getElementById('stats').textContent=`${s.width} × ${s.height} · ${s.fps.toFixed(1)} fps · ${s.kbps.toFixed(0)} kbit/s`;const info=document.getElementById('record-info');info.textContent=s.recording_error?'Recording failed: unable to write to the console.':recording?`Recording · ${s.recording_seconds.toFixed(1)} seconds · ${(s.recording_bytes/1048576).toFixed(2)} MB`:s.recording_name?`Saved · ${s.recording_seconds.toFixed(1)} seconds · ${(s.recording_bytes/1048576).toFixed(2)} MB`:'Not recording';const link=document.getElementById('download');link.hidden=!s.recording_name||recording;if(!link.hidden){link.href='/recordings/'+encodeURIComponent(s.recording_name);link.download=s.recording_name;}if(!recording&&s.recording_name!==recordingName){recordingName=s.recording_name;await listRecordings();}}
- catch(e){if(!currentPlayback&&!stopped)message.textContent='Connection lost. Reconnecting...';}
+ const T=k=>window.pbsT(k);
+ try{const response=await fetchWithTimeout('/status.json');if(!response.ok)throw new Error(T('unavailable'));const s=await response.json();recording=s.recording;const parkedNow=!!s.parked;const resumeBtn=document.getElementById('resume');if(resumeBtn.hidden!==parkedNow)resumeBtn.hidden=!parkedNow;if(parkedNow&&!stopped){message.textContent=T('parkedMsg');document.body.dataset.state='error';}}const recordLabel=recording?T('recordStop'):T('record');if(record.textContent!==recordLabel)record.textContent=recordLabel;record.classList.toggle('active',recording);document.getElementById('stats').textContent=`${s.width} × ${s.height} · ${s.fps.toFixed(1)} fps · ${s.kbps.toFixed(0)} ${T('kbitUnit')}`;const info=document.getElementById('record-info');info.textContent=s.recording_error?T('recordingFailed'):recording?`${T('recording')} · ${s.recording_seconds.toFixed(1)} s · ${(s.recording_bytes/1048576).toFixed(2)}${T('mbUnit')}`:s.recording_name?`${T('saved')} · ${s.recording_seconds.toFixed(1)} s · ${(s.recording_bytes/1048576).toFixed(2)}${T('mbUnit')}`:T('notRecording');const link=document.getElementById('download');link.hidden=!s.recording_name||recording;if(!link.hidden){link.href='/recordings/'+encodeURIComponent(s.recording_name);link.download=s.recording_name;}if(!recording&&s.recording_name!==recordingName){recordingName=s.recording_name;await listRecordings();}}
+ catch(e){if(!currentPlayback&&!stopped)message.textContent=T('connectionLost');}
  finally{refreshProfiles().catch(()=>{});document.getElementById('record-directory').disabled=document.getElementById('save-directory').disabled=recording;statusBusy=false;}
 }
-record.onclick=async()=>{record.disabled=true;try{const response=await fetchWithTimeout(recording?'/record/stop':'/record/start',{method:'POST'});if(!response.ok)throw new Error('The recording command failed.');await updateStatus();await listRecordings();}catch(e){document.getElementById('record-info').textContent=e.message;}finally{record.disabled=false;}};
+record.onclick=async()=>{record.disabled=true;try{const response=await fetchWithTimeout(recording?'/record/stop':'/record/start',{method:'POST'});if(!response.ok)throw new Error(window.pbsT('recordCmdFailed'));await updateStatus();await listRecordings();}catch(e){document.getElementById('record-info').textContent=e.message;}finally{record.disabled=false;}};
+document.getElementById('resume').onclick=async()=>{const btn=document.getElementById('resume');btn.disabled=true;try{const r=await fetchWithTimeout('/capture/start',{method:'POST'});if(!r.ok)throw new Error(T('unavailable'));stopped=false;restartViewer('Resuming');window.pbsPlayback.resume();}catch(e){message.textContent=e.message;}finally{btn.disabled=false;}};
 document.getElementById('snapshot').onclick=()=>{if(!video.videoWidth)return;const canvas=document.createElement('canvas');canvas.width=video.videoWidth;canvas.height=video.videoHeight;canvas.getContext('2d').drawImage(video,0,0);canvas.toBlob(blob=>{if(blob)window.pbsPreview.snapshot(blob);});};
-document.getElementById('stop').onclick=async()=>{stopped=true;restartViewer('Stream stopped');video.pause();try{await fetchWithTimeout('/stop',{method:'POST'});}catch(e){message.textContent='Unable to stop: '+e.message;return;}message.textContent='Stream stopped. Capture resources have been released.';};
+document.getElementById('stop').onclick=async()=>{stopped=true;restartViewer('Stream stopped');video.pause();try{await fetchWithTimeout('/stop',{method:'POST'});}catch(e){message.textContent=window.pbsT('stopFailed')+e.message;return;}message.textContent=window.pbsT('streamStopped');};
 const VIDEO_IDLE_MS=9000, BUFFER_IDLE_MS=7000;
 let currentPlayback=null;
 function restartViewer(reason){if(currentPlayback)currentPlayback.abort(reason||'Reconnecting video');}
@@ -437,6 +535,8 @@ document.addEventListener('visibilitychange',()=>{
 });
 window.addEventListener('pageshow',e=>{if(e.persisted&&!stopped)restartViewer('Restoring video');});
 keepPlaying();updateStatus();listRecordings().catch(()=>{});setInterval(updateStatus,1000);
+document.getElementById('lang').onchange=(e)=>{pbsLang=e.target.value;localStorage.setItem('pbs-lang',pbsLang);applyLang();};
+applyLang();
 </script><script>
 /* --- Audio PCM dal canale avcap2 -> Web Audio ---
  * Il viewer e' servito in HTTP semplice: AudioWorklet richiede un contesto
@@ -585,7 +685,16 @@ async function audioStreamLoop(){
   }
  }
 }
-document.getElementById('delay').oninput=(e)=>{const v=Number(e.target.value);document.getElementById('delayval').textContent=v+' ms';AQ.delayMs=v;};
+document.getElementById('delay').oninput=(e)=>{const v=Number(e.target.value);document.getElementById('delayval').textContent=v+window.pbsT('msUnit');AQ.delayMs=v;};
+/* --- Bitrate cap: live via /capture/bitrate, remembered in localStorage --- */
+const bitrateSel=document.getElementById('bitrate');
+bitrateSel.value=localStorage.getItem('pbs-bitrate')||'0';
+bitrateSel.onchange=async()=>{
+ const kbps=Number(bitrateSel.value);localStorage.setItem('pbs-bitrate',bitrateSel.value);
+ try{const r=await fetchWithTimeout('/capture/bitrate?kbps='+kbps,{method:'POST'});
+  if(!r.ok){const b=await r.json().catch(()=>({}));throw new Error(b.message||window.pbsT('unavailable'));}
+ }catch(e){document.getElementById('record-info').textContent=e.message;}
+};
 document.getElementById('stop').addEventListener('click',()=>{if(audioOn)stopAudio();});
 
 /* Reflect the stream state on <body> so the header chip and status pill can change colour. */

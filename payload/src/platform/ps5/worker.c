@@ -14,6 +14,13 @@
 
 #define PBS_PS5_WORKER_MAP_SIZE 0x4000u
 #define PBS_PS5_WORKER_THREAD_OFF 0x700u
+/* A private frame buffer held by the worker for the whole boot lifetime.
+ * Repeated captures used to malloc(0x200000) inside SceRemotePlay on every
+ * start; long sessions plus restart cycles fragmented its heap until the
+ * allocation returned 0 and every later injection failed immediately. The
+ * fallback buffer is allocated once from the same MAP_ANON pool at boot and
+ * munmapped at cleanup, so capture restarts never touch the target heap. */
+#define PBS_PS5_WORKER_FRAME_SIZE 0x200000u
 
 typedef struct {
   pbs_worker_link link;
@@ -23,6 +30,7 @@ typedef struct {
   uint64_t thread;
   intptr_t fn_join;
   intptr_t fn_munmap;
+  intptr_t frame_buffer;
   int running;
   /* A late bootstrap/shutdown failure can leave a live thread or mapping in
    * the target.  Keep its identity and refuse another boot rather than
@@ -87,6 +95,14 @@ static int cleanup_mapping(FILE *log, int join_thread) {
             (int)worker.pid, (int)cleanup.pid);
     pbs_inject_end(&cleanup);
     return -1;
+  }
+  if (worker.frame_buffer) {
+    long frc = pbs_inject_call_fast(
+        &cleanup, worker.fn_munmap,
+        (uint64_t[6]){worker.frame_buffer, PBS_PS5_WORKER_FRAME_SIZE, 0, 0, 0, 0});
+    fprintf(log, "PS5 worker cleanup: munmap(frame 0x%zx) -> 0x%08lx\n",
+            (size_t)worker.frame_buffer, (unsigned long)frc);
+    worker.frame_buffer = 0;
   }
   if (join_thread) {
     long rc = pbs_inject_call_fast(
@@ -197,6 +213,20 @@ int pbs_ps5_worker_boot(pbs_inject_t *ctx, FILE *log) {
   worker.pid = ctx->pid;
   worker.map = (intptr_t)map;
   worker.map_size = PBS_PS5_WORKER_MAP_SIZE;
+  /* Reserve the private frame buffer now: capture restarts reuse it instead
+   * of malloc(2MB) inside SceRemotePlay, which fragments the target heap. */
+  long frame_map = pbs_inject_call_fast(
+      ctx, fn_mmap,
+      (uint64_t[6]){0, PBS_PS5_WORKER_FRAME_SIZE, PROT_READ | PROT_WRITE,
+                    MAP_PRIVATE | MAP_ANON, (uint64_t)-1, 0});
+  if (frame_map > 0 && frame_map != PBS_CALL_TIMEOUT) {
+    worker.frame_buffer = (intptr_t)frame_map;
+    fprintf(log, "PS5 worker: frame buffer reserved at %p size=0x%x\n",
+            (void *)worker.frame_buffer, PBS_PS5_WORKER_FRAME_SIZE);
+  } else {
+    worker.frame_buffer = 0;
+    fprintf(log, "PS5 worker: frame buffer reservation failed (heap capture will try malloc)\n");
+  }
   const intptr_t arg = worker.map + (intptr_t)context_off;
 
   pbs_worker_remote_ctx remote;
@@ -314,4 +344,8 @@ int pbs_ps5_worker_shutdown(FILE *log) {
   if (cleanup_rc) quarantine_worker(log, "joined cleanup failed");
   else reset_worker();
   return cleanup_rc;
+}
+
+intptr_t pbs_ps5_worker_frame_buffer(void) {
+  return worker.frame_buffer;
 }

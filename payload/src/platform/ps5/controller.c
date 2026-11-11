@@ -12,6 +12,15 @@
 #include <ps5/kernel.h>
 
 int sceKernelLoadStartModule(const char *, size_t, const void *, uint32_t, void *, uint32_t *);
+/* Link-time libScePad imports (SDK stub lib). On FW12.00 resolving exports on
+ * the fly over a fresh LoadStartModule handle crashed the payload before the
+ * first scePadInit log line, so prefer the statically bound imports and keep
+ * the runtime path only as a fallback for SDKs without the stub library. */
+int scePadInit(void);
+int scePadSetProcessPrivilege(int);
+int scePadVirtualDeviceAddDevice(const void *, void *);
+int scePadVirtualDeviceInsertData(int, const void *);
+int scePadVirtualDeviceDeleteDevice(int);
 typedef struct {
   int (*init)(void);
   int (*privilege)(int);
@@ -50,12 +59,22 @@ static int prepare(void) {
       return -1;
     }
     module = (uint32_t)rc;
+    /* Prefer the link-time imports bound to the SDK stub lib. Resolving the
+     * same exports over the fresh handle crashed FW12.00 payloads here. */
+    pad.init = scePadInit;
+    pad.privilege = scePadSetProcessPrivilege;
+    pad.add = scePadVirtualDeviceAddDevice;
+    pad.insert = scePadVirtualDeviceInsertData;
+    pad.remove = scePadVirtualDeviceDeleteDevice;
+    log_result("Use link-time libScePad imports", 0);
+    goto exports_ready;
   }
   pad.init = (void *)kernel_dynlib_dlsym(getpid(), module, "scePadInit");
   pad.privilege = (void *)kernel_dynlib_dlsym(getpid(), module, "scePadSetProcessPrivilege");
   pad.add = (void *)kernel_dynlib_dlsym(getpid(), module, "scePadVirtualDeviceAddDevice");
   pad.insert = (void *)kernel_dynlib_dlsym(getpid(), module, "scePadVirtualDeviceInsertData");
   pad.remove = (void *)kernel_dynlib_dlsym(getpid(), module, "scePadVirtualDeviceDeleteDevice");
+exports_ready:
   if ((intptr_t)pad.init <= 0 || (intptr_t)pad.privilege <= 0 || (intptr_t)pad.add <= 0 ||
       (intptr_t)pad.insert <= 0 || (intptr_t)pad.remove <= 0) {
     log_result("Required virtual-pad exports unavailable", -1);

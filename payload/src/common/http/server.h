@@ -33,3 +33,12 @@ void pbs_h264_enable_profiles(void);
 void pbs_h264_enable_profile_mask(unsigned mask);
 int pbs_h264_take_profile_request(int *height);
 void pbs_h264_profile_failed(void);
+/* Web-configured bitrate ceiling, kbps; 0 = use the startup rate. */
+int pbs_h264_take_bitrate_request(void);
+/* Force an IDR on the running session (used after a live bitrate change). */
+void pbs_h264_request_keyframe(void);
+/* Park after /stop: keep the HTTP listener and wait for POST /capture/start.
+ * Returns once a resume was requested. 0 on resume, -1 if the listener died. */
+int pbs_h264_park_until_resume(int port);
+/* True while parked between /stop and /capture/start. */
+int pbs_h264_is_parked(void);

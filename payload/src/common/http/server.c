@@ -54,6 +54,9 @@ static struct {
   int running, listener, port, clients, key_request, rec_pending, width, height, fps;
   int media_clients;
   int restart_request;
+  int bitrate_kbps;
+  int resume_request;
+  int parked_listener;
   int profiles_enabled, profile_pending, profile_changing, profile_height, profile_error, profile_error_height;
   unsigned profile_mask;
   uint64_t generation;
@@ -120,6 +123,47 @@ void pbs_h264_profile_failed(void) {
   live.profile_height = live.height;
   pthread_mutex_unlock(&live.lock);
 }
+int pbs_h264_take_bitrate_request(void) {
+  pthread_mutex_lock(&live.lock);
+  int kbps = live.bitrate_kbps;
+  pthread_mutex_unlock(&live.lock);
+  return kbps;
+}
+void pbs_h264_request_keyframe(void) {
+  pthread_mutex_lock(&live.lock);
+  live.key_request = 1;
+  pthread_mutex_unlock(&live.lock);
+}
+/* Parked state: after /stop the process stays alive and the HTTP listener
+ * keeps serving status/config, but capture stays down until the web UI
+ * posts /capture/start. Parked is not running: status.json reports
+ * "stopped" so the viewer shows the idle banner instead of reconnecting. */
+static int parked;
+/* Screen confirmation uses the same notification channel main.c declares;
+ * keep server.c self-contained with a weak local declaration. */
+int sceKernelSendNotificationRequest(int, void *, size_t, int);
+static void notify_park(int port) {
+  typedef struct { char pad[45]; char message[3075]; } notify_request_t;
+  notify_request_t req;
+  memset(&req, 0, sizeof req);
+  snprintf(req.message, sizeof req.message,
+           "PBS parked\nResume from the web dashboard (port %d)", port);
+  sceKernelSendNotificationRequest(0, &req, sizeof req, 0);
+}
+int pbs_h264_park_until_resume(int port) {
+  parked = 1;
+  notify_park(port);
+  pthread_mutex_lock(&live.lock);
+  while (!live.resume_request && live.parked_listener >= 0) {
+    pthread_cond_wait(&live.changed, &live.lock);
+  }
+  int resume = live.resume_request;
+  live.resume_request = 0;
+  pthread_mutex_unlock(&live.lock);
+  parked = 0;
+  return resume ? 0 : -1;
+}
+int pbs_h264_is_parked(void) { return parked; }
 
 
 static uint64_t milliseconds(void) {
@@ -168,6 +212,25 @@ static void select_profile(int fd, const char *path) {
   }
   pthread_mutex_unlock(&live.lock);
   profile_reply(fd, code, message);
+}
+/* Runtime bitrate ceiling. Applies live via sceAvcap2SetVideoBitrate on the
+ * running session and to every later session restart, so the cap survives
+ * resolution switches and stream recovery. 0 restores the startup rate. */
+static void select_bitrate(int fd, const char *path) {
+  int kbps = 0, consumed = 0, code = 200;
+  const char *message = "Bitrate limit applied";
+  if (sscanf(path, "/capture/bitrate?kbps=%d%n", &kbps, &consumed) != 1 || path[consumed]) {
+    profile_reply(fd, 400, "Invalid bitrate"); return;
+  }
+  if (kbps && (kbps < 1000 || kbps > 100000)) {
+    profile_reply(fd, 422, "Bitrate out of range (1000-100000 kbps)"); return;
+  }
+  pthread_mutex_lock(&live.lock);
+  live.bitrate_kbps = kbps;
+  pthread_mutex_unlock(&live.lock);
+  char body[128];
+  int n = snprintf(body, sizeof body, "{\"kbps\":%d}", kbps);
+  if (n > 0 && (size_t)n < sizeof body) reply(fd, "application/json", body, (size_t)n);
 }
 static int keyframe(const unsigned char *p, size_t size) {
   for (size_t i = 0; i + 4 < size; i++) {
@@ -475,8 +538,8 @@ static void status(int fd) {
   char body[768];
   pthread_mutex_lock(&live.lock);
   double seconds = (milliseconds() - live.started) / 1000.0;
-  int n = snprintf(body, sizeof body, "{\"backend\":\"h264\",\"width\":%d,\"height\":%d,\"frames\":%llu,\"bytes\":%llu,\"fps\":%.1f,\"kbps\":%.1f,\"clients\":%d,\"recording\":%s,\"recording_name\":\"%s\",\"recording_frames\":%llu,\"recording_bytes\":%llu,\"recording_seconds\":%.1f,\"recording_error\":%s,\"audio_chunks\":%llu,\"audio_bytes\":%llu,\"audio_kbps\":%.1f,\"audio_codec\":\"%s\"}",
-      live.width, live.height, (unsigned long long)live.seq, (unsigned long long)live.bytes, seconds > 0 ? live.seq/seconds : 0,
+  int n = snprintf(body, sizeof body, "{\"backend\":\"h264\",\"parked\":%s,\"width\":%d,\"height\":%d,\"frames\":%llu,\"bytes\":%llu,\"fps\":%.1f,\"kbps\":%.1f,\"clients\":%d,\"recording\":%s,\"recording_name\":\"%s\",\"recording_frames\":%llu,\"recording_bytes\":%llu,\"recording_seconds\":%.1f,\"recording_error\":%s,\"audio_chunks\":%llu,\"audio_bytes\":%llu,\"audio_kbps\":%.1f,\"audio_codec\":\"%s\"}",
+      parked ? "true" : "false", live.width, live.height, (unsigned long long)live.seq, (unsigned long long)live.bytes, seconds > 0 ? live.seq/seconds : 0,
       seconds > 0 ? live.bytes*8/seconds/1000 : 0, live.clients, live.rec || live.rec_pending ? "true" : "false", live.rec_name,
       (unsigned long long)live.rec_frames, (unsigned long long)live.rec_bytes,
       live.fps > 0 ? (double)live.rec_frames/live.fps : 0, live.rec_error ? "true" : "false",
@@ -695,12 +758,27 @@ static void *client_thread(void *arg) {
     reply(fd, "application/json", "{}", 2);
   } else if (!strcmp(method, "POST") && !strncmp(path, "/capture/profile", 16)) {
     select_profile(fd, path);
+  } else if (!strcmp(method, "POST") && !strncmp(path, "/capture/bitrate", 16)) {
+    select_bitrate(fd, path);
+  } else if (!strcmp(method, "GET") && !strcmp(path, "/capture/bitrate")) {
+    char body[64];
+    pthread_mutex_lock(&live.lock);
+    int n = snprintf(body, sizeof body, "{\"kbps\":%d}", live.bitrate_kbps);
+    pthread_mutex_unlock(&live.lock);
+    if (n > 0 && (size_t)n < sizeof body) reply(fd, "application/json", body, (size_t)n);
   } else if (!strcmp(method, "POST") && !strcmp(path, "/capture/restart")) {
     pthread_mutex_lock(&live.lock); live.restart_request = 1; pthread_mutex_unlock(&live.lock);
     reply(fd, "application/json", "{}", 2);
   } else if (!strcmp(method, "POST") && !strcmp(path, "/stop")) {
     reply(fd, "application/json", "{}", 2);
     pbs_h264_server_stop();
+  } else if (!strcmp(method, "POST") && !strcmp(path, "/capture/start")) {
+    /* Wake the parked payload: the capture thread reopens the session. */
+    pthread_mutex_lock(&live.lock);
+    live.resume_request = 1;
+    pthread_cond_broadcast(&live.changed);
+    pthread_mutex_unlock(&live.lock);
+    reply(fd, "application/json", "{}", 2);
   } else reply(fd, "text/plain", "Unavailable route", 17);
 done:
   pthread_mutex_lock(&live.lock);

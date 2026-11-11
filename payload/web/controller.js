@@ -104,9 +104,9 @@
    const response=await root.fetch('/input/status',{cache:'no-store'});const s=await response.json();
    surface.hidden=!s.supported;
    if(token!==owner||connecting)return;
-   if(s.cleanup_required){token='';reflect();info.textContent='Controller cleanup failed. Stop streaming and check controller.log before reconnecting.';}
-   else if(token&&!s.connected){token='';reset();reflect();info.textContent='Controller session expired. Connect again to resume.';}
-   else if(!token&&!connecting)info.textContent=s.connected?'Controller is in use by another viewer.':'Connect a virtual controller to control the PS5.';
+   if(s.cleanup_required){token='';reflect();info.textContent=window.pbsT?window.pbsT('ctrlCleanupFailed'):'Controller cleanup failed. Stop streaming and check controller.log before reconnecting.';}
+   else if(token&&!s.connected){token='';reset();reflect();info.textContent=window.pbsT?window.pbsT('ctrlExpired'):'Controller session expired. Connect again to resume.';}
+   else if(!token&&!connecting)info.textContent=s.connected?(window.pbsT?window.pbsT('ctrlInUse'):'Controller is in use by another viewer.'):(window.pbsT?window.pbsT('ctrlConnectHint'):'Connect a virtual controller to control the PS5.');
   }catch(e){}
  }
  reflect();status();setInterval(status,1500);

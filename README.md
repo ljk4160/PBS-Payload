@@ -5,19 +5,21 @@
 
 <br/><br/>
 
-**Broadcast Stream payload and browser viewer for PlayStation 5 — with a PS4 backend in the same tree.**
+**PlayStation 5 广播流采集 payload 与浏览器查看器 —— 同一代码树内附带 PS4 后端。**
+
+**中文翻译版**：由 [ljk4160](https://github.com/ljk4160) 维护，在原版基础上包含多项固件 12.00 修复与功能增强（见 [CHANGELOG.md](CHANGELOG.md) 中文更新记录）。
 
 <br/>
 
 [![C11](https://img.shields.io/badge/C-11-informational?style=flat-square&logo=c&logoColor=white)](https://en.cppreference.com/w/c/11)
 [![License](https://img.shields.io/badge/license-GPL--3.0--or--later-informational?style=flat-square)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-PS5%20%7C%20PS4-blueviolet?style=flat-square)](#-supported-firmware)
+[![Platform](https://img.shields.io/badge/platform-PS5%20%7C%20PS4-blueviolet?style=flat-square)](#-支持的固件)
 [![Version](https://img.shields.io/badge/version-0.4.0-blue?style=flat-square)](VERSION)
 [![Firmware](https://img.shields.io/badge/PS5%20profiles-21%20measured-brightgreen?style=flat-square)](docs/PS5_FIRMWARE_OFFSETS.txt)
 
 <br/>
 
-[Overview](#-overview) · [Features](#-features) · [Supported firmware](#-supported-firmware) · [Usage](#-usage) · [Build](#-build) · [HTTP API](#-http-api) · [Limits](#-known-limits) · [Docs](#-documentation)
+[概述](#概述) · [功能](#功能) · [支持的固件](#支持的固件) · [使用](#使用) · [构建](#构建) · [HTTP API](#http-api) · [已知限制](#已知限制) · [文档](#文档)
 
 <br/>
 
@@ -25,68 +27,65 @@
 
 ---
 
-## Repository architecture
+## 仓库架构
 
-The console program is split by responsibility under `payload/src/common/` and
-`payload/src/platform/{ps5,ps4}/`, with the offset tables of each firmware kept
-next to the code that selects them (`platform/*/offset/`). Measurement tools
-(dump payloads, generators, ledgers) live in `tools/` and are deliberately
-outside the capture path. Generated assets stay in `payload/build/generated/`.
+主机端程序按职责拆分在 `payload/src/common/` 与 `payload/src/platform/{ps5,ps4}/` 下，
+各固件的偏移表保存在选择它们的代码旁边（`platform/*/offset/`）。测量工具
+（dump payload、生成器、账本）位于 `tools/`，刻意置于采集路径之外。生成的资源
+保存在 `payload/build/generated/`。
 
-The browser viewer is embedded into the payload at build time, so a single ELF
-carries capture, HTTP transport and UI. See
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the dependency rules and
-[`CHANGELOG.md`](CHANGELOG.md) for the release history.
+浏览器查看器在构建期嵌入 payload，因此单个 ELF 同时承载采集、HTTP 传输与
+UI。依赖规则见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)，发布历史见
+[`CHANGELOG.md`](CHANGELOG.md)。
 
-## Overview
+## 概述
 
-PBS Payload runs on the console, captures the live video stream and serves it to
-a browser over the local network: MJPEG frames, RTP packetized H.264, or a
-recorded file written on the console itself. The same viewer starts, stops and
-re-profiles the capture without reloading the payload.
+PBS Payload 运行在主机上，采集实时视频流并通过局域网提供给浏览器：MJPEG 帧、
+RTP 封装的 H.264，或写入主机本地的录制文件。同一个查看器即可启动、停止和
+切换采集配置，无需重新加载 payload。
 
-Everything the payload does to firmware memory is derived from a memory dump of
-that exact firmware, never from a neighbouring one. A profile is a table of
-instruction addresses — the Avcap2 request geometry and the RemotePlay
-constructor — and a wrong address is not a soft failure, so an unknown build is
-refused by design.
+payload 对固件内存的每一次操作都来源于**该固件本身**的内存转储，绝不借用
+相邻版本的。一个 profile 就是一张指令地址表——Avcap2 请求几何与 RemotePlay
+构造器——错误的地址不是可容忍的软失败，因此未知固件会被**设计上直接拒绝**。
 
 ```
-Design rules
-  ├── Truth over guesses      → a profile exists only if it was dumped and disassembled
-  ├── Fail closed             → unknown request size = refused, never borrowed
-  ├── Measured claims         → docs say what was verified on hardware, not what might work
-  ├── Small surface           → one HTTP server, one embedded viewer, no external runtime
-  └── Extras are opt-in       → branding, dumps and diagnostics are build switches
+设计规则
+  ├── 实测高于猜测      → profile 只有在 dump 并反汇编之后才存在
+  ├── 失败即关闭        → 未知请求尺寸 = 拒绝，绝不借用
+  ├── 只说验证过的话    → 文档只写硬件上验证过的内容
+  ├── 小作用面          → 一个 HTTP 服务，一个内嵌查看器，无外部运行时
+  └── 附加项皆需主动开启 → 品牌横幅、dump 与诊断都是构建开关
 ```
 
-## Features
+## 功能
 
-| Area | What it gives you |
+| 领域 | 提供的能力 |
 |---|---|
-| **Capture** | Hardware H.264 encoder via Avcap2; 720p / 1080p / 1440p / 2160p profiles, 60 fps mode |
-| **Profiles** | Switching at runtime through `/capture/profile`; PS5 auto-selects 1080p for an observed 1080p output mode |
-| **Audio** | Stereo 48 kHz float32 PCM (`/audio`) |
-| **Transport** | HTTP MJPEG (`/frames`), RTP packetization for external players, capture restart and discontinuity handling |
-| **Viewer** | Built-in browser UI: live stats, resolution switching, forced keyframe, recording, download |
-| **Recording** | Writes an H.264 file on the console, served back from `/recordings/` |
-| **Firmware** | 24 measured PS5 profiles plus audited family ranges; PS4 runtime layout discovery |
-| **Diagnostics** | Offset, dependency and module dump payloads that produce the next firmware profile |
-| **Reliability** | Port fallback (ten candidates), RTP backlog resync with keyframe request, periodic keyframe refresh |
+| **采集** | 通过 Avcap2 的硬件 H.264 编码器；720p / 1080p / 1440p / 2160p 配置，60 fps 模式 |
+| **配置切换** | 运行时通过 `/capture/profile` 切换；PS5 在检测到 1080p 输出模式时自动选择 1080p |
+| **音频** | 立体声 48 kHz float32 PCM（`/audio`） |
+| **传输** | HTTP MJPEG（`/frames`）、外部播放器用的 RTP 封装、采集重启与断流处理 |
+| **查看器** | 内置浏览器 UI：实时统计、分辨率切换、强制关键帧、录制、下载 |
+| **录制** | 在主机上写入 H.264 文件，从 `/recordings/` 取回 |
+| **固件** | 24 个实测 PS5 profile 及经审计的家族范围；PS4 运行时布局发现 |
+| **诊断** | 偏移、依赖与模块 dump payload，用于产出下一个固件的 profile |
+| **可靠性** | 端口回退（十个候选）、RTP 积压重同步伴随关键帧请求、周期性关键帧刷新 |
+| **中文界面** | 内置查看器支持中英双语切换，选择持久保存 |
+| **码率上限** | Web 界面实时设置编码码率上限（1–100 Mbps），热生效并自动强制关键帧 |
+| **驻留恢复** | 停止直播后进程驻留待命，Web 一键恢复，无需重新注入 |
 
-The default requested encoder budget is 60 Mbit/s; the configurable range is
-1–100 Mbit/s. Actual output depends on scene and encoder — a higher budget is not
-a guarantee of higher measured bitrate.
+默认编码器预算为 60 Mbit/s，可配置范围 1–100 Mbit/s。实际输出取决于场景与
+编码器——更高的预算并不保证更高的实测码率。
 
-## Supported firmware
+## 支持的固件
 
-### PS5 — measured profiles
+### PS5 —— 实测 profile
 
-Each row was disassembled from a dump of that firmware: the request geometry from
-`libSceAvcap2.sprx.prefix.bin`, the RemotePlay constructor from the
-`SceRemotePlay` EBOOT. The firmware ID is `0xMMMMmmmm` (major, minor, build).
+每一行都来自该固件自身的 dump 反汇编：请求几何来自
+`libSceAvcap2.sprx.prefix.bin`，RemotePlay 构造器来自 `SceRemotePlay` 的
+EBOOT。固件 ID 格式为 `0xMMMMmmmm`（主版本、次版本、构建号）。
 
-| Release | Firmware ID | Request | `kind` |
+| 版本 | 固件 ID | 请求尺寸 | `kind` |
 | --- | --- | --- | --- |
 | 3.20 | `0x03200004` | `0x218` | `0xe8` |
 | 4.00 | `0x04000042` | `0x230` | `0x100` |
@@ -113,16 +112,14 @@ Each row was disassembled from a dump of that firmware: the request geometry fro
 | 13.42 | `0x13420000` | `0x2e8` | `0x1a8` |
 | 13.60 | `0x13600007` | `0x2e8` | `0x1a8` |
 
-Ten of them are **exact-only** (3.20, 4.00, 4.51, 5.00, 5.10, 5.50, 9.60, 11.20, 13.00, 13.20): another
-build revision of the same release is refused instead of being served with a
-geometry it was never measured on.
+其中十个为**仅精确匹配**（3.20、4.00、4.51、5.00、5.10、5.50、9.60、11.20、13.00、13.20）：
+同一版本的另一构建号会被拒绝，而不会用从未实测过的几何参数去服务它。
 
-### PS5 — releases served by an audited family range
+### PS5 —— 由经审计的家族范围覆盖的版本
 
-Between measured anchors, releases whose Avcap2 geometry is unchanged are
-accepted without their own profile:
+在实测锚点之间，Avcap2 几何未发生变化的版本无需自己的 profile 即可接受：
 
-| Family range | Anchor profile | Releases accepted |
+| 家族范围 | 锚点 profile | 覆盖的版本 |
 | --- | --- | --- |
 | 6.02 – 8.40 | `602` | 6.50, 7.00, 7.01, 7.40, 7.60, 7.61, 8.00, 8.20 |
 | 9.20 – 9.40 | `920` | — |
@@ -130,67 +127,64 @@ accepted without their own profile:
 | 11.40 – 12.70 | `1160` | 12.02, 12.20, 12.60 |
 | 13.40 – 13.60 | `1360` | 13.40 |
 
-A range stands in only for releases inside the audited window; it never covers a
-release listed as exact-only, and never covers another build of an exact-only
-release.
+家族范围只覆盖审计窗口内的版本，绝不覆盖列为仅精确匹配的版本，也绝不覆盖
+仅精确匹配版本的另一构建号。
 
-### PS5 — not supported yet
+### PS5 —— 尚不支持
 
-| Release | Why it is refused | What it needs |
+| 版本 | 拒绝原因 | 需要什么 |
 | --- | --- | --- |
-| 9.00 | lies outside the 9.20–9.40 family | dump of `libSceAvcap2` + `SceRemotePlay` |
-| 11.00 | sits between the 10.01–10.60 geometry (`0x2b8`) and the measured 11.20 build (`0x2e0`) | dump |
-| 14.00 | beyond the last audited family (13.40–13.60) | dump |
-| 14.10 | beyond the last audited family (13.40–13.60) | dump |
+| 9.00 | 在 9.20–9.40 家族范围之外 | `libSceAvcap2` + `SceRemotePlay` 的 dump |
+| 11.00 | 介于 10.01–10.60 几何（`0x2b8`）与实测的 11.20 构建（`0x2e0`）之间 | dump |
+| 14.00 | 超出最后一个审计家族（13.40–13.60） | dump |
+| 14.10 | 超出最后一个审计家族（13.40–13.60） | dump |
 
-If your console reports one of these, the payload refuses to patch rather than
-risk a wrong request size. Run the dump build and open an issue with the
-archive — that is exactly how 3.20, 4.00, 4.51, 5.10, 11.20, 13.00, 13.20, 13.42 and
-the other profiles were added.
+如果你的主机是上述版本之一，payload 会拒绝打补丁而不是冒错误的请求尺寸的
+风险。请运行 dump 构建并携带归档开一个 issue——3.20、4.00、4.51、5.10、11.20、
+13.00、13.20、13.42 等其他 profile 正是这样加入的。
 
 ### PS4
 
-| Release | State |
+| 版本 | 状态 |
 | --- | --- |
-| 14.00 | validated on hardware (fw `0x14008001`): kernel layout discovered at runtime (acmgr `+0x3b3830`, gates `+0x3673f5`/`+0x3678e1`), gates armed, ptrace identity adopted, Avcap Init/Open/Start all `0x0`, 720p worker backend streaming over HTTP |
-| 11.00 | validated on hardware: 720p worker backend, ~59.9 fps over 180 s sessions, video read through exported `sceVshAvcapReadVideo` |
-| 9.00 | kernel layout (acmgr + both gates) discovered at runtime; Avcap exports measured; capture internals not validated |
-| 6.72 | offset report and diagnostics only |
+| 14.00 | 硬件验证（fw `0x14008001`）：内核布局运行时发现（acmgr `+0x3b3830`，gates `+0x3673f5`/`+0x3678e1`），gates 已布防，采用 ptrace 身份，Avcap Init/Open/Start 全部 `0x0`，720p worker 后端通过 HTTP 串流 |
+| 11.00 | 硬件验证：720p worker 后端，180 秒会话约 59.9 fps，通过导出的 `sceVshAvcapReadVideo` 读取视频 |
+| 9.00 | 内核布局（acmgr 与两个 gates）运行时发现；Avcap 导出已测量；采集内部未验证 |
+| 6.72 | 仅偏移报告与诊断 |
 
-PS4 kernel offsets do not transfer between releases, so a build without a
-matching layout is refused before any patch is applied. PS4 audio is disabled.
-Deeper detail: [`docs/PS4_FIRMWARE_OFFSETS.txt`](docs/PS4_FIRMWARE_OFFSETS.txt),
-[`docs/PS4_HANDOFF.md`](docs/PS4_HANDOFF.md).
+PS4 内核偏移在不同版本之间不通用，因此没有匹配布局的构建会在打任何补丁
+之前被拒绝。PS4 音频已禁用。更多细节：
+[`docs/PS4_FIRMWARE_OFFSETS.txt`](docs/PS4_FIRMWARE_OFFSETS.txt)、
+[`docs/PS4_HANDOFF.md`](docs/PS4_HANDOFF.md)。
 
-## Usage
+## 使用
 
-Load `pbs.elf` with your payload loader. With no arguments the stream starts on
-port 9999 at 2560×1440 on modern profiles. The measured 3.20, 4.00, 4.51 and
-5.10 builds start at 1920×1080 and offer 720p, 1080p and 2160p: their native
-resolution table has no 1440p entry.
+用你的 payload 加载器加载 `pbs.elf`。不带参数时，较新的 profile 会在 9999
+端口以 2560×1440 启动。实测的 3.20、4.00、4.51 与 5.10 构建以 1920×1080 启动，
+并提供 720p、1080p 与 2160p：它们的原生分辨率表没有 1440p 项。
 
 ```
 pbs.elf avserve [720p|1080p|1440p|2160p] [bitrate=N] [minqp=N] [norate]
                 [offsetdump] [dependencydump] [moduledump] [noaudio] [nocontroller] [port]
 ```
 
-Open `http://<console-ip>:9999/` in a browser on the same network. Audio starts
-after a user gesture (browser autoplay policy). If the port is already taken by
-another process, the payload binds the next free port in a ten-port window and
-says which one in the console notification.
+在同一网络的浏览器中打开 `http://<主机IP>:9999/`。音频在用户交互后开始
+（浏览器自动播放策略）。如果端口已被其他进程占用，payload 会在十个端口的
+窗口内绑定下一个空闲端口，并通过主机通知告知实际端口。
 
-Run the payload as a background service on the console; it keeps capturing while
-the viewer is closed. `POST /stop` releases the capture resources.
+payload 作为常驻服务在主机上运行；查看器关闭时它继续采集。`POST /stop`
+释放采集资源。**本翻译版增强**：停止后进程驻留待命，Web 界面点击"恢复直播"
+即可就地重开，无需重新注入。
 
-## Build
+## 构建
 
-Requires LLVM (clang + lld) and a payload SDK:
+需要 LLVM（clang + lld）与 payload SDK：
 
-| Target | SDK | Output |
+| 目标 | SDK | 输出 |
 | --- | --- | --- |
 | PS5 | [`ps5-payload-dev/sdk`](https://github.com/ps5-payload-dev/sdk) | `payload/build/ps5/pbs.elf` |
 | PS4 | [`ps4-payload-dev/sdk`](https://github.com/ps4-payload-dev/sdk) | `payload/build/ps4/pbs-remote-stream.elf` |
-| PS5 dump | same PS5 SDK | `payload/build/pbs-ps5-dump.elf` |
+| PS5 dump | 同 PS5 SDK | `payload/build/pbs-ps5-dump.elf` |
 
 ```bash
 # Linux / WSL
@@ -199,137 +193,131 @@ export PS5_PAYLOAD_SDK=$HOME/ps5-payload-sdk
 ```
 
 ```powershell
-# Windows (WSL-backed)
+# Windows（WSL 后端）
 ./payload/build.ps1 -Platform PS5 -SdkPath '~/ps5-payload-sdk'
 ```
 
-Optional switches: `-WebLogo` (`PBS_WEB_LOGO=1` in WSL) embeds the owner banner,
-`-Kind dump` builds the measurement payload, `-Ps5DefaultResolution` changes the
-initial profile. Offline regression runs on the host with
-`tools/test_ps4_host.sh` and in CI through `verify.yml`. Full instructions:
-[`BUILDING.md`](BUILDING.md), release procedure: [`docs/RELEASING.md`](docs/RELEASING.md).
+可选开关：`-WebLogo`（WSL 中为 `PBS_WEB_LOGO=1`）嵌入所有者横幅，`-Kind dump`
+构建测量 payload，`-Ps5DefaultResolution` 修改初始配置。离线回归测试用
+`tools/test_ps4_host.sh`，CI 走 `verify.yml`。完整说明：
+[`BUILDING.md`](BUILDING.md)，发布流程：[`docs/RELEASING.md`](docs/RELEASING.md)。
+
+本翻译版另附 **Windows 原生构建路径**（无需 WSL）：LLVM 便携版 +
+ps5-payload-sdk 官方预编译包（`win/prospero-clang.cmd`），详见 CHANGELOG。
 
 ## HTTP API
 
-| Endpoint | Method | Purpose |
+| 端点 | 方法 | 用途 |
 | --- | --- | --- |
-| `/` | GET | Embedded viewer |
-| `/config.json` | GET | Active profile, advertised resolutions, decoder headers |
-| `/status.json` | GET | Width, height, fps, bitrate, recording state |
-| `/frames` | GET | MJPEG stream |
-| `/audio` | GET | Raw PCM (stereo, 48 kHz, float32) |
-| `/capture/profile` | POST | Queue a resolution change (`?height=1080`) |
-| `/capture/restart` | POST | Restart the capture pipeline |
-| `/video/keyframe` | POST | Force an IDR for the current viewer |
-| `/record/start`, `/record/stop` | POST | Write or stop a recording on the console |
-| `/recordings`, `/recordings/<name>` | GET | List and download recordings |
-| `/stop` | POST | Release the capture resources |
-| `/banner.png` | GET | Owner banner, present only in a build made with `PBS_WEB_LOGO=1` |
+| `/` | GET | 内嵌查看器 |
+| `/config.json` | GET | 当前配置、可用分辨率、解码器头 |
+| `/status.json` | GET | 宽、高、fps、码率、录制状态、驻留状态 |
+| `/frames` | GET | MJPEG 流 |
+| `/audio` | GET | 原始 PCM（立体声，48 kHz，float32） |
+| `/capture/profile` | POST | 请求分辨率切换（`?height=1080`） |
+| `/capture/bitrate` | GET/POST | 查询/设置码率上限（`?kbps=20000`，热生效） |
+| `/capture/start` | POST | 恢复驻留中的采集（配合 `/stop`） |
+| `/capture/restart` | POST | 重启采集管线 |
+| `/video/keyframe` | POST | 为当前查看器强制 IDR |
+| `/record/start`, `/record/stop` | POST | 在主机上写入或停止录制 |
+| `/recordings`, `/recordings/<name>` | GET | 列出与下载录制 |
+| `/stop` | POST | 停止直播并驻留待命（进程保持存活） |
+| `/banner.png` | GET | 所有者横幅，仅在 `PBS_WEB_LOGO=1` 构建中存在 |
 
-These endpoints are unauthenticated local-network services. Use a trusted LAN and
-never expose the console to the Internet.
+这些端点是**无身份验证**的本地网络服务。请使用可信局域网，切勿将主机暴露
+到互联网。
 
-## PS5 remote controller
+## PS5 远程手柄
 
-The embedded viewer provides **Connect controller** for the PS5 firmware profiles
-already supported by the payload. Connect explicitly, then choose a PS5 user if
-the console asks. Click the controller area to use its displayed keyboard bindings,
-use a standard browser gamepad, or hold the right mouse button over the video to
-move the right stick. Only one viewer owns a controller at a time. Disconnect it
-with **Disconnect controller** before leaving the session.
+内嵌查看器为 payload 已支持的 PS5 固件 profile 提供**连接手柄**功能。显式
+连接后，如果主机询问请选择一个 PS5 用户。点击手柄区域使用其显示的键盘绑定，
+使用标准浏览器手柄，或在视频上按住鼠标右键移动右摇杆。同一时间只有一个
+查看器拥有手柄。离开会话前请用**断开手柄**释放。
 
-Streaming and controller input are included in the same `pbs.elf` by default.
-Pass `nocontroller` at launch (`pbs.elf avserve nocontroller`) to disable input
-for that session. To exclude the native controller backend at build time, use
-`-Ps5Controller 0` with `payload/build.ps1`, or `PBS_PS5_CONTROLLER=0` with
-`payload/build.sh ps5`. The default is 1 in both build scripts. With input disabled,
-the viewer hides the controller section and registration is unavailable.
+串流与手柄输入默认包含在同一个 `pbs.elf` 中。启动时传入 `nocontroller`
+（`pbs.elf avserve nocontroller`）可为该次会话禁用输入。构建期排除原生手柄
+后端：`payload/build.ps1` 用 `-Ps5Controller 0`，`payload/build.sh ps5` 用
+`PBS_PS5_CONTROLLER=0`。两个构建脚本的默认值都是 1。禁用输入后，查看器
+隐藏手柄区域且无法注册。
 
-Input is released after 250 ms without updates; after two seconds the viewer
-session is released, but the virtual device stays registered for the payload
-lifetime. Reconnecting reuses that device instead of creating another one.
-Losing focus sends neutral input. Video profile changes keep the controller
-session. The device and process privilege are removed only when the payload
-stops. Basic buttons, sticks and triggers are implemented; touch coordinates,
-motion and feedback are not. This feature is PS5 only.
+250 ms 无更新即释放输入；两秒后查看器会话被释放，但虚拟设备在 payload
+生命周期内保持注册。重连会复用该设备而不是创建新的。失去焦点发送中性输入。
+视频配置切换保持手柄会话。只有 payload 停止时才移除设备与进程特权。基本
+按键、摇杆与扳机已实现；触摸坐标、体感与震动反馈未实现。此功能仅限 PS5。
 
-The backend resolves native `libScePad` exports locally and uses the existing
-firmware selector. Offline tests cover all 24 measured profile IDs, framing,
-session ownership, browser focus loss and cleanup failures. Hardware validation
-on each firmware remains pending. API availability is checked when connecting;
-failure stops the operation. The diagnostic log is `/data/pbs/controller.log`.
+后端在本地解析原生 `libScePad` 导出并使用现有固件选择器。本翻译版在固件
+12.00 上的修复：改用**链接期导入**取代对新鲜 LoadStartModule 句柄的运行时
+dlsym——后者在 12.00 上会导致 payload 在首次 `scePadInit` 之前崩溃。离线
+测试覆盖全部 24 个实测 profile ID、封帧、会话所有权、浏览器焦点丢失与清理
+失败。每个固件的硬件验证仍在进行中。连接时检查 API 可用性；失败即停止操作。
+诊断日志位于 `/data/pbs/controller.log`。
 
-For viewer integrations, `GET /input/status` reports availability and ownership
-without exposing a session token. `POST /input/connect` returns a token; send it
-in `X-PBS-Controller` for `/input/state` and `/input/disconnect`. All three POST
-routes require `X-PBS-Input: 1`. State bodies contain eight unsigned decimal CSV
-fields: `sequence,buttons,lx,ly,rx,ry,l2,r2`. Stick centres are 128, axes and
-triggers range from 0 to 255, and sequence numbers must advance modulo 2^32.
-Keep sending state at least every 100 ms while connected. Deletion happens only
-at payload shutdown; if it fails, `cleanup_required` and `last_rc` report it in
-status and the log.
+对查看器集成方，`GET /input/status` 报告可用性与占用而不暴露会话 token。
+`POST /input/connect` 返回 token；在 `/input/state` 与 `/input/disconnect`
+中用 `X-PBS-Controller` 头携带。三条 POST 路由都要求 `X-PBS-Input: 1`。
+状态体包含八个无符号十进制 CSV 字段：`sequence,buttons,lx,ly,rx,ry,l2,r2`。
+摇杆中心值 128，轴与扳机范围 0–255，序列号须按 2^32 取模递增。连接期间
+至少每 100 ms 发送一次状态。删除只在 payload 关闭时发生；若失败，
+`cleanup_required` 与 `last_rc` 会报告在状态与日志中。
 
-## Known limits
+## 已知限制
 
-- **Hardware validation is uneven by design.** PS4 11.00 at 720p is validated on
-  real hardware (180 s sessions, ~59.9 fps, decoded recording). PS5 profiles are
-  verified by offline disassembly and bounds checks; the console smoke test is
-  the last step per release and some profiles have not had it yet.
-- **No native 4K, 120 fps or zero-latency claims.** 2160p is a selectable capture
-  profile, not a promise about the encoder or the link.
-- **PS4 audio is disabled.** PS4 capture is validated on 11.00 and 14.00 at 720p;
-  other PS4 firmwares remain unverified.
-- **Firmware outside the tables above is refused**, on purpose.
-- The desktop/mobile application is a separate project and is not part of this
-  repository or its license grant.
+- **硬件验证按设计是不均匀的。** PS4 11.00 的 720p 已在真实硬件上验证
+  （180 秒会话，约 59.9 fps，解码录制）。PS5 profile 通过离线反汇编与边界
+  检查验证；每次发布的主机冒烟测试是最后一步，部分 profile 尚未完成。
+- **不承诺原生 4K、120 fps 或零延迟。** 2160p 是可选的采集配置，不是对
+  编码器或链路的承诺。
+- **PS4 音频已禁用。** PS4 采集在 11.00 与 14.00 的 720p 上已验证；其余
+  PS4 固件未验证。
+- **上表之外的固件会被拒绝**，这是有意为之。
+- 桌面/移动应用是独立项目，不属于本仓库或其许可授予范围。
 
-## Documentation
+## 文档
 
-| Document | Content |
+| 文档 | 内容 |
 | --- | --- |
-| [`BUILDING.md`](BUILDING.md) | Toolchain, SDK, every build switch |
-| [`CHANGELOG.md`](CHANGELOG.md) | Release history |
-| [`docs/PS5_FIRMWARE_OFFSETS.txt`](docs/PS5_FIRMWARE_OFFSETS.txt) | Per-release geometry, source dump and evidence |
-| [`docs/PS5_FIRMWARE_RANGES.md`](docs/PS5_FIRMWARE_RANGES.md) | Why a release is served by a range, and the bounds |
-| [`docs/PS5_OFFSET_PROFILES.md`](docs/PS5_OFFSET_PROFILES.md) | How a dump becomes a profile |
-| [`docs/STREAM_PROFILES.md`](docs/STREAM_PROFILES.md) | Runtime resolution switching |
-| [`docs/PS4_HANDOFF.md`](docs/PS4_HANDOFF.md) | PS4 hardware evidence and open points |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Module boundaries and dependency rules |
-| [`docs/RELEASING.md`](docs/RELEASING.md) | Release workflow, store registration, SDK provisioning |
+| [`BUILDING.md`](BUILDING.md) | 工具链、SDK、全部构建开关 |
+| [`CHANGELOG.md`](CHANGELOG.md) | 发布历史（含中文更新记录） |
+| [`docs/PS5_FIRMWARE_OFFSETS.txt`](docs/PS5_FIRMWARE_OFFSETS.txt) | 各版本几何、来源 dump 与证据 |
+| [`docs/PS5_FIRMWARE_RANGES.md`](docs/PS5_FIRMWARE_RANGES.md) | 家族范围覆盖的原理与边界 |
+| [`docs/PS5_OFFSET_PROFILES.md`](docs/PS5_OFFSET_PROFILES.md) | dump 如何变成 profile |
+| [`docs/STREAM_PROFILES.md`](docs/STREAM_PROFILES.md) | 运行时分辨率切换 |
+| [`docs/PS4_HANDOFF.md`](docs/PS4_HANDOFF.md) | PS4 硬件证据与待办 |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 模块边界与依赖规则 |
+| [`docs/RELEASING.md`](docs/RELEASING.md) | 发布流程、商店注册、SDK 供给 |
 
-## Support development
+## 支持开发
 
-If PBS Payload is useful to you and you want to support continued work:
+如果 PBS Payload 对你有用，并希望支持持续开发：
 
 [![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/seregon)
 
-## Credits
+## 致谢
 
-- **John Törnblom** — PS5 payload SDK and the `ptrace` process-call technique
-  this implementation references (prospero-menu/libNineS).
-- **ps4-payload-dev** — PS4 payload SDK and reference tooling.
-- **MemDBG** — process memory reference.
-- **The PlayStation homebrew community** — testers, dump contributors and
-  feedback; every new firmware profile in this repository comes from a community
-  dump.
+- **John Törnblom** — PS5 payload SDK 与本实现参考的 `ptrace` 进程调用技术
+  （prospero-menu/libNineS）。
+- **ps4-payload-dev** — PS4 payload SDK 与参考工具。
+- **MemDBG** — 进程内存访问。
+- **PlayStation 自制软件社区** — 测试者、dump 贡献者与反馈者；本仓库每个新
+  固件 profile 都来自社区 dump。
+- **ljk4160** — 固件 12.00 问题诊断与修复（手柄崩溃、帧缓冲 fallback、
+  驻留恢复）、码率上限与中文界面。
 
-## License and provenance
+## 许可与来源
 
-Source code, including the embedded viewer, is licensed
-**GPL-3.0-or-later** — see [LICENSE](LICENSE). Existing attribution is retained.
+包括内嵌查看器在内的源代码以 **GPL-3.0-or-later** 授权——见
+[LICENSE](LICENSE)。既有署名予以保留。
 
-`payload/web/logo.png` (bright, for dark backgrounds) and `payload/web/logo-dark.png`
-(the same mark, inverted for light backgrounds) are PBS branding, not GPL-licensed
-artwork: they are included for use with this project, and unrelated reuse needs the
-owner's permission. The README picks the right one with GitHub's
-`#gh-dark-mode-only` / `#gh-light-mode-only` fragments.
+`payload/web/logo.png`（亮色，深色背景用）与 `payload/web/logo-dark.png`
+（同一标志，浅色背景用的反色版）是 PBS 品牌资产，不是 GPL 授权的美术作品：
+它们仅为配合本项目使用而包含，无关的复用需要所有者许可。README 通过
+GitHub 的 `#gh-dark-mode-only` / `#gh-light-mode-only` 片段选择正确的版本。
 
-`payload/web/banner.png` is the stream overlay served at `/banner.png`: it is
-embedded only when the build asks for it (`PBS_WEB_LOGO`), it is not GPL-licensed
-either, and a default build does not contain it.
+`payload/web/banner.png` 是在 `/banner.png` 服务的串流叠加图：仅在构建要求
+时（`PBS_WEB_LOGO`）嵌入，同样不是 GPL 授权，默认构建不包含它。
 
 <div align="center">
 
-Released under the [GNU General Public License v3.0 or later](LICENSE)
+以 [GNU General Public License v3.0 or later](LICENSE) 发布
 
 </div>

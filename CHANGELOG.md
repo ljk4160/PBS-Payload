@@ -3,6 +3,87 @@
 Notable changes to PBS Payload. `VERSION` at the repository root holds the
 numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 
+# 更新日志（中文）
+
+PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
+带后缀（如 `v0.2.0-beta.1`）。
+
+## v0.4.0-beta5-fix0.4（本 fork 的增强版）— 2026-11-11
+
+在原版 v0.4.0（含上游 PR #3 修复）基础上，针对固件 12.00（`0x12000043`）的
+实测问题做的全套修复与功能增强。全部改动已在 PS5 实机（12.00）上硬件验证。
+
+### 固件 12.00 修复
+
+- **修复 Web 界面点击手柄导致 payload 崩溃**。12.00 上 `libScePad.sprx` 无法
+  按名解析，每次连接都走 `LoadStartModule` 获取新句柄，而对新鲜句柄做
+  `kernel_dynlib_dlsym` 会在首次 `scePadInit` 日志之前触发崩溃（每次点击
+  Connect 都复现）。修复：`prepare()` 改用**链接期导入**（SDK stub
+  `libScePad`），跳过运行时 dlsym；按名解析成功的固件仍走原路径，无回归。
+  验证：完整的虚拟手柄生命周期（scePadInit → SetProcessPrivilege →
+  VirtualDeviceAddDevice → InsertData ×N → DeleteDevice → 特权回收）。
+- **根治"反复注入后永远启动不了"**。诊断发现 SceRemotePlay 用户堆在长期
+  串流与多次采集重启后碎片化，远程 `malloc(0x200000)` 帧缓冲开始返回 0，
+  此后每次注入都在 `GetNonVclNalUnitStream` 之前静默失败。修复：worker 引导
+  时一次性 `mmap` 保留 2MB 私有帧缓冲（`PBS_PS5_WORKER_FRAME_SIZE`），采集
+  重启/分辨率切换/断流重连**不再向 SceRemotePlay 堆分配内存**；目标 malloc
+  失败时自动回退到该保留缓冲（inject.txt 可见 `using worker frame buffer`）。
+  worker 退出时随 mapping 一并释放，无泄漏。
+- **替换旧实例的竞态修复**。注入时自动 SIGKILL 同名旧实例（原版没有自保
+  逻辑，klogsrv/elfldr 都有）后，原实现盲等固定 2 秒，偶尔输给内核的
+  TIME_WAIT 回收，导致新实例 bind 9999 失败并静默退出。修复：改为**探测式
+  等待**——每 200ms 实际尝试绑定 9999 直到成功（上限 10 秒）。
+
+### 新功能
+
+- **Web 码率上限**：新端点 `POST/GET /capture/bitrate?kbps=N`（合法范围
+  1000–100000，0 = 恢复启动码率）。查看器 dock 栏新增下拉（默认 60M /
+  20M / 10M / 5M / 2M），设置热生效并自动强制一次关键帧让新码率立即起作用；
+  设置在断流重连与采集重启之后保持。外网带宽不足导致的反复断流以此对症。
+- **停止后驻留 + 一键恢复**：`/stop` 之后 payload 不再退出——HTTP 监听器
+  保持存活，`status.json` 报告 `"parked":true`，屏幕弹出 "PBS parked"，
+  查看器显示驻留提示与**恢复直播**按钮；`POST /capture/start` 唤醒采集并
+  就地重开（复用同一 worker 与帧缓冲，不重新注入、不重新引导 elfldr、
+  不重启主机）。恢复路径即原 `goto avopen_retry`，帧缓冲已预留故不会
+  再次触碰目标堆。
+- **查看器中英双语界面**：全部 UI 文案（标题、状态、录制、存储、手柄、
+  分辨率、对话框）提供中文翻译，dock 栏语言下拉即时切换，选择存于
+  localStorage 刷新后保持。手柄状态提示（占用/过期/清理失败）一并翻译。
+- **注入替换旧实例**：新实例启动时查找并 SIGKILL 所有同名旧 payload 进程
+  （跳过自身），inject.txt 记录 `PBS replace: killed N previous instance(s)`，
+  屏幕通知 "PBS: replaced previous instance"。反复注入从"双实例打架"变成
+  "干净替换"。
+
+### 诊断增强
+
+- `capture_stream` 的三个静默 `return -1`（导出解析失败 / 帧缓冲分配失败 /
+  seconds 非法）全部补上明确日志——此前失败只能看到 OpenVideo ok 之后
+  戛然而止。
+- HTTP server bind 失败（端口被占用且扫描窗口耗尽）现在会写日志并弹屏通知，
+  不再静默退出。
+- `status.json` 新增 `"parked"` 字段。
+
+### 硬件验证（PS5 retail，固件 0x12000043）
+
+| 构建 | 请求路径 | OpenVideo | 手柄 | 串流 |
+|---|---|---|---|---|
+| v0.4.0-beta.3 | synthetic | ok | ok | ✅ |
+| v0.4.0-beta.4 / beta.5 | firmware-constructor（未修） | `0x81950001` | 崩溃 | ❌ |
+| master `a710f55` + 本 fork 修复 | firmware-constructor（修后） | ok | ok | ✅ |
+| 长稳测试 | 同上 | — | — | 1440p 868s @ 59.9fps，3 次断流自动重连 |
+
+相关上游 issue：[#9](https://github.com/seregonwar/PBS-Payload/issues/9)
+（12.00 firmware-constructor 回归），修复源自
+[#3](https://github.com/seregonwar/PBS-Payload/pull/3)（13.00 同型问题）。
+
+### Windows 原生构建记录
+
+不依赖 WSL 的构建路径已验证可行：LLVM 便携版（clang 23.1.5）+ ps5-payload-sdk
+官方预编译包（v0.45，`win/prospero-clang.cmd`）。要点：SDK 的
+`prospero-llvm-config` 需要 `llvm-config-23` 在 PATH 中（复制 llvm-config.exe
+并重命名）；lld 按 argv0 分发驱动，`bin/prospero-lld` 需指向内置 ELF driver
+的 `win/lld.exe`；产物通过 `tools/verify_ps5_elf.py` 校验。
+
 ## v0.4.0-beta.2 — 2026-11-07
 
 Beta, pre-release. Changes since `v0.4.0-beta.1`: PS5 capture now runs through
