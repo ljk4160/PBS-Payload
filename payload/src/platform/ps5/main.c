@@ -181,6 +181,12 @@ typedef struct {
   double sumsq;
   uint64_t floats;
   float peak;
+  unsigned fails;      /* consecutive failed reads */
+  int32_t last_code;   /* last error code, to log each distinct failure once */
+  int dead;            /* give up reading audio for this session */
+  int reopen_tried;    /* one reopen attempt per session */
+  unsigned capture_feature;
+  uint32_t format;
 } pbs_audio_t;
 
 /* Open the audio channel with the verified 0x38-byte parameter structure: common size 0x18, usage 2, format, arbitrator feature and 128 kbit/s rate. */
@@ -201,6 +207,8 @@ static int pbs_audio_open(FILE *f, pbs_inject_t *ctx, pbs_audio_t *audio, unsign
       (uint64_t)ctx->scratch + 0x400, (uint64_t)ctx->scratch + 0x408, 0, 0, 0, 0});
   fprintf(f, "Audio OpenAudio(format=%u feature=%u) -> %s%s\n", format, capture_feature, fmt_rc(rc), ctx->asserted ? " [ASSERT]" : "");
   if (rc == LONG_MIN || (int32_t)(uint32_t)rc < 0 || ctx->asserted) return -1;
+  audio->capture_feature = capture_feature;
+  audio->format = format;
   ++capture_audio_unclosed;
   if (pbs_inject_read_at(ctx, ctx->scratch + 0x400, &audio->handle, sizeof audio->handle) || !audio->handle) {
     fprintf(f, "Audio handle mancante\n");
@@ -246,15 +254,38 @@ static void pbs_audio_close(FILE *f, pbs_inject_t *ctx, pbs_audio_t *audio) {
 
 /* Drain at most rounds available audio packets into the reusable local frame buffer. */
 static void pbs_audio_drain(FILE *f, pbs_inject_t *ctx, pbs_audio_t *audio, unsigned char *frame, int rounds) {
+  if (audio->dead) return;
   for (int i = 0; i < rounds && audio->read_fn; i++) {
     long rc = capture_call_fast(ctx, audio->read_fn, (uint64_t[6]){audio->handle,
         (uint64_t)audio->buffer, 65536, (uint64_t)ctx->scratch + 0x500, 1, 0});
     if (rc == LONG_MIN) { fprintf(f, "Audio ReadAudio timeout\n"); break; }
     int32_t count = (int32_t)(uint32_t)rc;
     if (count <= 0) {
-      if (!audio->packets) fprintf(f, "Audio ReadAudio -> %s\n", fmt_rc(rc));
+      int32_t code = (int32_t)(uint32_t)rc;
+      /* One line per distinct failure code instead of one per poll. */
+      if (!audio->packets && audio->last_code != code) {
+        fprintf(f, "Audio ReadAudio -> %s\n", fmt_rc(rc));
+        audio->last_code = code;
+      }
+      if (++audio->fails >= 120) {
+        if (!audio->reopen_tried) {
+          unsigned feat = audio->capture_feature;
+          uint32_t fmt = audio->format;
+          fprintf(f, "Audio read failed (%s); reopening the audio channel once\n", fmt_rc(rc));
+          pbs_audio_close(f, ctx, audio);
+          if (pbs_audio_open(f, ctx, audio, feat, fmt) == 0) {
+            audio->reopen_tried = 1;
+            audio->fails = 0;
+            break;
+          }
+        }
+        audio->dead = 1;
+        fprintf(f, "Audio disabled for this session after %u failed reads (%s); reopen capture to retry\n",
+                audio->fails, fmt_rc(rc));
+      }
       break;
     }
+    audio->fails = 0;
     if (count > 65536 || pbs_inject_read_at(ctx, audio->buffer, frame, count)) break;
     unsigned char info[16] = {0};
     pbs_inject_read_at(ctx, ctx->scratch + 0x500, info, sizeof info);
@@ -793,7 +824,7 @@ avopen_retry:;
           (void)pbs_ps5_worker_shutdown(f);
           pbs_inject_end(&ctx);
           fclose(f);
-          notify("PBS: video mode query failed");
+          notify("PBS: video mode query interrupted. Restart the console before retrying.");
           return 1;
         }
       }

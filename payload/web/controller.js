@@ -24,7 +24,7 @@
   return s;
  }
  function encode(sequence,s){return [sequence>>>0,s.buttons>>>0,s.lx,s.ly,s.rx,s.ry,s.l2,s.r2].join(',');}
- root.PBSController={neutral,stateFor,encode};
+ root.PBSController={neutral,stateFor,encode,get active(){return !!token;}};
  if(!root.document||!root.navigator)return;
  const doc=root.document,surface=doc.getElementById('controller-controls');
  if(!surface)return;
@@ -32,7 +32,7 @@
  let token='',sequence=0,busy=false,connecting=false,last='',lastSent=0,force=false,mouseX=0,mouseY=0;
  const keys=new Set();
  function reset(){keys.clear();mouseX=mouseY=0;force=true;}
- function reflect(){connect.disabled=connecting||!!token;disconnect.hidden=!token;}
+ function reflect(){connect.disabled=connecting;disconnect.hidden=true;connect.dataset.on=token?'1':'0';connect.textContent=token?(window.pbsT?window.pbsT('disconnectController'):'Disconnect controller'):(window.pbsT?window.pbsT('connectController'):'Connect controller');}
  async function command(path,body='',options={}){
   const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),800);
   try{
@@ -44,29 +44,28 @@
    return data;
   }finally{clearTimeout(timer);}
  }
- async function end(text='Controller disconnected'){
+ async function end(){
   if(!token)return;
   reset();
-  try{await command('/input/disconnect');}catch(e){text='Connection lost; controller will be released automatically';}
-  token='';last='';reflect();info.textContent=text;
+  try{await command('/input/disconnect');}catch(e){}
+  token='';last='';reflect();
  }
  connect.addEventListener('click',async()=>{
-  if(connecting||token)return;
+  if(connecting)return;
+  if(token){end();return;}
   connecting=true;reflect();
   try{
    const result=await command('/input/connect');
    if(!/^[a-f0-9]{32}$/.test(result.token))throw new Error('Invalid controller session');
-   token=result.token;sequence=0;last='';lastSent=0;reset();surface.focus();
-   info.textContent='Controller connected. Select a user on the PS5 if prompted. Use a gamepad or the keyboard controls below.';
-  }catch(e){info.textContent=e.message;}
+   token=result.token;sequence=0;last='';lastSent=0;reset();reflect();connect.blur();
+  }catch(e){const m=doc.getElementById('message');if(m)m.textContent=e.message;connect.blur();}
   finally{connecting=false;reflect();}
  });
  disconnect.addEventListener('click',()=>end());
  async function tick(){
   if(!token||busy)return;
-  const focused=!doc.hidden&&doc.hasFocus();
   let s=neutral();
-  if(focused){
+  {
    let pads=[];try{pads=root.navigator.getGamepads?.()||[];}catch(e){}
    const pad=Array.from(pads).find(p=>p?.connected&&p.mapping==='standard');
    s=stateFor(pad,keys);
@@ -80,23 +79,39 @@
   catch(e){if(token===owner)await end('Controller stopped: '+e.message);}
   finally{busy=false;}
  }
- doc.addEventListener('keydown',e=>{
-  if(!token||e.ctrlKey||e.metaKey||e.altKey||!surface.contains(e.target)||/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(e.target.tagName))return;
-  if(bindings[e.code]||axisKeys.includes(e.code)){e.preventDefault();keys.add(e.code);}
- });
- doc.addEventListener('keyup',e=>{if(keys.delete(e.code)){e.preventDefault();force=true;}});
+ const owned=e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey)return false;
+  const t=e.target&&e.target.tagName?e.target.tagName:'';
+  if(/^(INPUT|TEXTAREA|SELECT)$/.test(t)||(e.target&&e.target.isContentEditable))return false;
+  return Boolean(bindings[e.code]||axisKeys.includes(e.code));
+ };
+ /* PS5 owns these keys in every phase: no player hotkey (play/pause, volume,
+  * seek) may react. Swallow at window and document, keydown/keypress/keyup. */
+ const swallow=e=>{if(!owned(e))return;e.preventDefault();e.stopImmediatePropagation();};
+ const consumeDown=e=>{if(!owned(e))return;e.preventDefault();e.stopImmediatePropagation();if(token)keys.add(e.code);};
+ const consumeUp=e=>{const had=keys.delete(e.code);if(!owned(e))return;e.preventDefault();e.stopImmediatePropagation();if(had)force=true;};
+ for(const t of [root,doc]){
+  t.addEventListener('keydown',consumeDown,true);
+  t.addEventListener('keypress',swallow,true);
+  t.addEventListener('keyup',consumeUp,true);
+ }
  root.addEventListener('blur',reset);
  doc.addEventListener('visibilitychange',()=>{if(doc.hidden)reset();});
- doc.addEventListener('focusin',e=>{if(!surface.contains(e.target))reset();});
  root.addEventListener('gamepaddisconnected',reset);
  const video=doc.getElementById('video');
  video?.addEventListener('contextmenu',e=>{if(token)e.preventDefault();});
- video?.addEventListener('mousemove',e=>{if(token&&(e.buttons&2)){mouseX+=e.movementX||0;mouseY+=e.movementY||0;surface.focus();}});
+ video?.addEventListener('mousemove',e=>{if(token&&(e.buttons&2)){mouseX+=e.movementX||0;mouseY+=e.movementY||0;}});
  root.addEventListener('pagehide',()=>{
   if(token)root.fetch('/input/disconnect',{method:'POST',headers:{'X-PBS-Input':'1','X-PBS-Controller':token},keepalive:true}).catch(()=>{});
   token='';reset();
  });
  doc.getElementById('stop')?.addEventListener('click',()=>end());
+ /* Safety net: a stray play/pause hotkey must never freeze a live stream. */
+ const vid=doc.getElementById('video');
+ vid?.addEventListener('pause',()=>{
+  if(stopped||vid.ended)return;
+  setTimeout(()=>{if(!stopped&&vid.paused&&!vid.ended)vid.play().catch(()=>{});},60);
+ });
  setInterval(tick,16);
  async function status(){
   const owner=token;
@@ -104,9 +119,8 @@
    const response=await root.fetch('/input/status',{cache:'no-store'});const s=await response.json();
    surface.hidden=!s.supported;
    if(token!==owner||connecting)return;
-   if(s.cleanup_required){token='';reflect();info.textContent=window.pbsT?window.pbsT('ctrlCleanupFailed'):'Controller cleanup failed. Stop streaming and check controller.log before reconnecting.';}
-   else if(token&&!s.connected){token='';reset();reflect();info.textContent=window.pbsT?window.pbsT('ctrlExpired'):'Controller session expired. Connect again to resume.';}
-   else if(!token&&!connecting)info.textContent=s.connected?(window.pbsT?window.pbsT('ctrlInUse'):'Controller is in use by another viewer.'):(window.pbsT?window.pbsT('ctrlConnectHint'):'Connect a virtual controller to control the PS5.');
+   if(s.cleanup_required){token='';reflect();}
+   else if(token&&!s.connected){token='';reset();reflect();}
   }catch(e){}
  }
  reflect();status();setInterval(status,1500);
