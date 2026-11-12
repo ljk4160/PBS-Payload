@@ -8,6 +8,16 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix5.3（本 fork 的增强版）— 2026-11-12
+
+### 新接口：`GET /log` 实时查看 inject.txt
+
+- `GET /log?lines=N`（默认 300 行，上限 5000）先回最后 N 行，随后每 250 ms
+  轮询追加内容，等价于 `tail -f`；单次连接最长 10 分钟，客户端断开即结束。
+- 支持文件被截断/替换：检测到尺寸回退就重新打开。
+- 查看器页脚新增「日志」链接（新标签页打开），命令行等价：
+  `curl -N http://<主机>:9999/log?lines=200`。
+
 ## v0.4.0-beta5-fix5.2（本 fork 的增强版）— 2026-11-12
 
 ### 修复：点一次“应用”后码率下拉永久变灰

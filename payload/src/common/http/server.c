@@ -716,6 +716,48 @@ static void download(int fd, const char *input,const char *range) {
   }
   fclose(file);
 }
+/* Live tail of /data/pbs/inject.txt: last N lines, then poll for growth.
+ * `curl -N http://host:9999/log?lines=200` follows it from a terminal. */
+static void log_stream(int fd, const char *path) {
+  int lines = 300;
+  if (sscanf(path, "/log?lines=%d", &lines) != 1) lines = 300;
+  if (lines < 0) lines = 0;
+  if (lines > 5000) lines = 5000;
+  static const char header[] =
+      "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\n"
+      "Cache-Control: no-store\r\nConnection: close\r\n\r\n";
+  if (send_all(fd, header, sizeof header - 1)) return;
+  const char *file = "/data/pbs/inject.txt";
+  FILE *f = fopen(file, "r");
+  if (!f) { send_all(fd, "(inject.txt not created yet)\n", 30); return; }
+  if (lines > 0 && fseek(f, 0, SEEK_END) == 0) {
+    long pos = ftell(f);
+    int seen = 0;
+    while (pos > 0 && seen <= lines) {
+      pos--;
+      if (fseek(f, pos, SEEK_SET)) break;
+      if (fgetc(f) == '\n') seen++;
+    }
+    fseek(f, pos, SEEK_SET);
+  }
+  char buf[4096];
+  size_t n;
+  const uint64_t started = milliseconds();
+  while (milliseconds() - started < 600000u) {
+    n = fread(buf, 1, sizeof buf, f);
+    if (n) { if (send_all(fd, buf, n)) break; continue; }
+    long pos = ftell(f);
+    usleep(250000);
+    FILE *probe = fopen(file, "r");
+    if (probe) {
+      fseek(probe, 0, SEEK_END);
+      const long size = ftell(probe);
+      fclose(probe);
+      if (size < pos) { fclose(f); f = fopen(file, "r"); if (!f) break; }
+    }
+  }
+  fclose(f);
+}
 typedef struct { int fd, slot; } client_arg_t;
 static void *client_thread(void *arg) {
   client_arg_t client = *(client_arg_t *)arg; free(arg);
@@ -778,6 +820,7 @@ static void *client_thread(void *arg) {
     }
   }
   else if (!strncmp(path,"/input/",7)) input_route(fd,method,path,request,used);
+  else if (!strcmp(method, "GET") && !strncmp(path, "/log", 4)) log_stream(fd, path);
   else if (!strcmp(method, "GET") && !strcmp(path, "/config.json")) configuration(fd);
   else if (!strcmp(method, "GET") && !strcmp(path, "/status.json")) status(fd);
   else if (!strcmp(method, "GET") && !strncmp(path, "/frames", 7)) stream(fd, frames_lowlat);
