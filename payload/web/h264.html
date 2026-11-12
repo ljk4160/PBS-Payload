@@ -178,7 +178,7 @@ const PBS_I18N={
  zh:{
   title:'PBS Studio · 主机直播',brand:'PBS Studio',platform:'主机直播 · 硬件 H.264',
   record:'录制',recordStop:'停止录制',snapshot:'保存截图',download:'下载录像',
-  volumeLbl:'音量',muteBtn:'静音',unmuteBtn:'取消静音',audioDelay:'音频延迟',bitrateCap:'码率上限',bitrateAuto:'自动 (60 Mbps)',keymapTitle:'手柄 / 键盘按键说明',kmDpad:'方向键 = 十字键',kmMove:'W A S D = 左摇杆（移动）',kmLook:'I J K L = 右摇杆（视角）',kmCross:'空格 / X = ✕ 确定',kmCircle:'C = ○ 取消（ESC 只用于退出全屏）',kmSquare:'Z = □ 方块',kmTriangle:'V = △ 三角',kmL1:'Q / E = L1 / R1',kmL2:'R / F = L2 / R2',kmOptions:'回车 = Options',kmPs:'P = PS 键',kmCapture:'Backspace = 截屏键',kmTouch:'T = 触摸板',kmMouse:'鼠标右键拖动 = 转视角',kmExit:'ESC / Ctrl+Alt = 退出全屏',virtualPad:'虚拟手柄',sysStandby:'待机',lowLatency:'低延迟',sysReboot:'重启',sysPoweroff:'关机',sysConfirm:'确认执行？主机会断开连接。',sysSent:'指令已发送，等待主机响应…',
+  volumeLbl:'音量',muteBtn:'静音',unmuteBtn:'取消静音',audioDelay:'音频延迟',bitrateCap:'码率上限',bitrateAuto:'自动 (60 Mbps)',keymapTitle:'手柄 / 键盘按键说明',kmDpad:'方向键 = 十字键',kmMove:'W A S D = 左摇杆（移动）',kmLook:'I J K L = 右摇杆（视角）',kmCross:'空格 / X = ✕ 确定',kmCircle:'C = ○ 取消（ESC 只用于退出全屏）',kmSquare:'Z = □ 方块',kmTriangle:'V = △ 三角',kmL1:'Q / E = L1 / R1',kmL2:'R / F = L2 / R2',kmOptions:'回车 = Options',kmPs:'P = PS 键',kmCapture:'Backspace = 截屏键',kmTouch:'T = 触摸板',kmMouse:'鼠标右键拖动 = 转视角',kmExit:'ESC / Ctrl+Alt = 退出全屏',virtualPad:'虚拟手柄',sysStandby:'待机',lowLatency:'低延迟',abrDown:'网络拥塞，码率已自动降到',sysReboot:'重启',sysPoweroff:'关机',sysConfirm:'确认执行？主机会断开连接。',sysSent:'指令已发送，等待主机响应…',
   resolution:'分辨率',apply:'应用',lang:'语言',
   remoteController:'远程手柄',connectController:'连接手柄',disconnectController:'断开手柄',
   controllerHelp:'点击此区域启用键盘控制：WASD 移动，IJKL 视角，方向键导航；X/空格 = 叉，C = 圆圈，Z = 方块，V = 三角，Q/E = L1/R1，R/F = L2/R2，回车 = Options，Backspace = PS 键，T = 触摸板点击。在视频上按住鼠标右键转动视角。支持浏览器标准手柄。',
@@ -205,7 +205,7 @@ const PBS_I18N={
  en:{
   title:'PBS Studio · Console live',brand:'PBS Studio',platform:'Console live · Hardware H.264',
   record:'Record',recordStop:'Stop recording',snapshot:'Save snapshot',download:'Download recording',
-  volumeLbl:'Volume',muteBtn:'Mute',unmuteBtn:'Unmute',audioDelay:'Audio delay',bitrateCap:'Bitrate cap',bitrateAuto:'Auto (60 Mbps)',keymapTitle:'Keyboard & controller keys',kmDpad:'Arrows = D-pad',kmMove:'W A S D = Left stick (move)',kmLook:'I J K L = Right stick (look)',kmCross:'Space / X = Cross',kmCircle:'C = Circle (ESC no longer cancels)',kmSquare:'Z = Square',kmTriangle:'V = Triangle',kmL1:'Q / E = L1 / R1',kmL2:'R / F = L2 / R2',kmOptions:'Enter = Options',kmPs:'P = PS button',kmCapture:'Backspace = Capture',kmTouch:'T = Touchpad',kmMouse:'Right-drag on video = look',kmExit:'ESC / Ctrl+Alt = leave fullscreen',virtualPad:'Virtual pad',sysStandby:'Standby',lowLatency:'Low latency',sysReboot:'Restart',sysPoweroff:'Power off',sysConfirm:'Continue? The console will drop the connection.',sysSent:'Command sent; waiting for the console…',
+  volumeLbl:'Volume',muteBtn:'Mute',unmuteBtn:'Unmute',audioDelay:'Audio delay',bitrateCap:'Bitrate cap',bitrateAuto:'Auto (60 Mbps)',keymapTitle:'Keyboard & controller keys',kmDpad:'Arrows = D-pad',kmMove:'W A S D = Left stick (move)',kmLook:'I J K L = Right stick (look)',kmCross:'Space / X = Cross',kmCircle:'C = Circle (ESC no longer cancels)',kmSquare:'Z = Square',kmTriangle:'V = Triangle',kmL1:'Q / E = L1 / R1',kmL2:'R / F = L2 / R2',kmOptions:'Enter = Options',kmPs:'P = PS button',kmCapture:'Backspace = Capture',kmTouch:'T = Touchpad',kmMouse:'Right-drag on video = look',kmExit:'ESC / Ctrl+Alt = leave fullscreen',virtualPad:'Virtual pad',sysStandby:'Standby',lowLatency:'Low latency',abrDown:'Congested link: bitrate lowered to',sysReboot:'Restart',sysPoweroff:'Power off',sysConfirm:'Continue? The console will drop the connection.',sysSent:'Command sent; waiting for the console…',
   resolution:'Resolution',apply:'Apply',lang:'Language',
   remoteController:'Remote controller',connectController:'Connect controller',disconnectController:'Disconnect controller',
   controllerHelp:'Click this area for keyboard control: WASD moves, IJKL looks, arrows navigate; X/Space = Cross, C = Circle, Z = Square, V = Triangle, Q/E = L1/R1, R/F = L2/R2, Enter = Options, Backspace = PS, T = Touchpad click. Hold the right mouse button over the video to look. Standard gamepads are supported when available in your browser.',
@@ -776,6 +776,30 @@ if(lowLatBtn)lowLatBtn.addEventListener('click',e=>{
   if(typeof restartViewer==='function'&&!stopped)restartViewer(lowLatency?'Low latency mode':'Smooth mode');
 });
 applyLowLat();
+/* Adaptive bitrate: the link cannot carry the chosen cap, so frames queue up
+ * and the measured transit delay climbs (typ. 600-1000 ms). Step the cap down
+ * once the delay stays high, never step back up automatically. */
+const ABR_STEPS=[20000,10000,8000,6000,4000,2000];
+let abrStreak=0,abrLastDrop=0,abrDrops=0;
+function abrTick(){
+  if(stopped||abrDrops>=3||typeof frameDelayMs!=='number'||frameDelayMs===null)return;
+  if(frameDelayMs>400)abrStreak++;else abrStreak=0;
+  if(abrStreak<5)return;
+  abrStreak=0;
+  if(Date.now()-abrLastDrop<20000)return;
+  const sel=document.getElementById('bitrate');if(!sel)return;
+  const cur=Number(sel.value)||20000;
+  const next=ABR_STEPS.find(v=>v<cur);
+  if(!next)return;
+  abrDrops++;abrLastDrop=Date.now();
+  sel.value=String(next);localStorage.setItem('pbs-bitrate',sel.value);
+  const hsel=document.getElementById('resolution');
+  fetch('/capture/apply?height='+encodeURIComponent(hsel?hsel.value:'720')+'&kbps='+next,{method:'POST'}).then(()=>{
+    const m=document.getElementById('message');
+    if(m)m.textContent=(window.pbsT?window.pbsT('abrDown'):'Congested link: bitrate lowered to')+' '+next+' kbps';
+  }).catch(()=>{});
+}
+setInterval(abrTick,1000);
 const sysSend=(action)=>{
   const msg=document.getElementById('message');
   fetch('/system/'+action,{method:'POST',cache:'no-store'}).then(()=>{
