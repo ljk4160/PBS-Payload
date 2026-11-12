@@ -8,6 +8,19 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix4.8（本 fork 的增强版）— 2026-11-12
+
+### 启动失败修复：`Start() 0x81950008` 自动重试
+
+- 日志形态：`OpenVideo() ok` 之后 `SetVideoBitrate` 与 `Start()` 都返回
+  `0x81950008`（该 feature 的编码器槽仍被上一个正在退出的会话占用），随后整个
+  payload 直接退出，表现为“注入后起不来”。
+- 旧版有一层“失败换槽/重开”逻辑，在早前的 `git checkout` 回退中丢失。现在补回：
+  检测到 `Start` 返回 `0x81950008` 后，**间隔 1 秒整体重开两次**（不是简单重试
+  Start，而是重走注入→Initialize→OpenVideo 的完整流程），日志写
+  `Start slot busy; reopening after 1 s (retries left N)`。
+- 两次仍失败则按原逻辑退出——那说明槽状态真的卡死，需要重启主机。
+
 ## v0.4.0-beta5-fix4.7（本 fork 的增强版）— 2026-11-12
 
 ### 延迟：按观众限制积压，不再累积

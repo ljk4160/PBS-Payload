@@ -103,6 +103,11 @@ static char stream_failure[96];
 static int live_profile_ready;
 static int bitrate_after_start;
 static int applied_bitrate_kbps;
+/* Start() 0x81950008 = the encoder slot for this feature is still owned by a
+ * dying session. A fresh open a second later usually succeeds, so retry the
+ * whole open a couple of times before giving up. */
+static int start_retry_left;
+static int applied_bitrate_kbps;
 /* Last videoOutMode reported by the console: 0x10 means the source only
  * produces 1080p, so 1440p/2160p requests can never open. */
 static uint32_t last_video_mode;
@@ -363,6 +368,7 @@ static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int secon
   if (audio_mode == 2 && !pbs_audio_open(f, ctx, &audio, capture_feature, 0)) audio.publish = 1;
   long rc = capture_call_fast(ctx, start, (uint64_t[6]){handle, 0, 0, 0, 0, 0});
   fprintf(f, "Start() -> %s\n", fmt_rc(rc));
+  if (rc != LONG_MIN && (uint32_t)rc == 0x81950008u && serving) start_retry_left = 2;
   if (serving && native_rate_config && requested_video_bitrate > 30000000 &&
       rc != LONG_MIN && (int32_t)(uint32_t)rc < 0 && !ctx->asserted) {
     fprintf(f, "Start rejected at requested bitrate=%u; bitrate and QP remain unchanged\n",
@@ -1135,6 +1141,13 @@ avopen_cleanup:;
       width = 1920; height = 1080; capture_feature = 12;
       FILE *rr = open_report("inject.txt", "a");
       if (rr) { fprintf(rr, "OpenVideo failed at %ux%u; retrying once at 1080p\n", retry_width, retry_height); fclose(rr); }
+      goto avopen_retry;
+    }
+    if (start_retry_left > 0 && clear_ok && !ctx.asserted) {
+      start_retry_left--;
+      FILE *sr = open_report("inject.txt", "a");
+      if (sr) { fprintf(sr, "Start slot busy; reopening after 1 s (retries left %d)\n", start_retry_left); fclose(sr); }
+      usleep(1000000);
       goto avopen_retry;
     }
     /* Reconfigure only after closing handles, stopping the resource request,
