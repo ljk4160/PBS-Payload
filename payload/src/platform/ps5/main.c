@@ -115,6 +115,7 @@ static int audio_codec = 2;  /* 0 = f32 (3 Mbps), 1 = s16 (1.5), 2 = IMA ADPCM (
 static int start_slot_busy;   /* Start() reported 0x81950008 */
 static int start_retry_done;   /* full reopens already spent on it */
 static int alt_profile_tried;   /* tried the other feature slot once */
+static int start_wait_cycles;   /* how many slow waits we already burned */
 static int applied_bitrate_kbps;
 /* Last videoOutMode reported by the console: 0x10 means the source only
  * produces 1080p, so 1440p/2160p requests can never open. */
@@ -439,7 +440,7 @@ static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int secon
   long rc = capture_call_fast(ctx, start, (uint64_t[6]){handle, 0, 0, 0, 0, 0});
   fprintf(f, "Start() -> %s\n", fmt_rc(rc));
   if (rc != LONG_MIN && (uint32_t)rc == 0x81950008u && serving) start_slot_busy = 1;
-  if (rc != LONG_MIN && (int32_t)(uint32_t)rc >= 0) { start_retry_done = 0; alt_profile_tried = 0; }
+  if (rc != LONG_MIN && (int32_t)(uint32_t)rc >= 0) { start_retry_done = 0; alt_profile_tried = 0; start_wait_cycles = 0; }
   if (serving && native_rate_config && requested_video_bitrate > 30000000 &&
       rc != LONG_MIN && (int32_t)(uint32_t)rc < 0 && !ctx->asserted) {
     fprintf(f, "Start rejected at requested bitrate=%u; bitrate and QP remain unchanged\n",
@@ -1247,21 +1248,22 @@ avopen_cleanup:;
       goto avopen_retry;
     }
     if (start_slot_busy) {
-      /* Five quick attempts failed: the encoder slot is held by a dead session.
-    if (start_slot_busy && start_retry_done < 5 && clear_ok && !ctx.asserted) {
-      start_slot_busy = 0; start_retry_done++;
-      FILE *qr = open_report("inject.txt", "a");
-      if (qr) { fprintf(qr, "Start slot busy; reopening (attempt %d/5)\n", start_retry_done); fclose(qr); }
-      usleep(start_retry_done >= 3 ? 2000000u : 1000000u);
-      goto avopen_retry;
-    }
-       * Wait 30 s and try again instead of exiting - the slot often frees once
-       * the previous owner (game / Remote Play) finishes tearing down. */
-      start_slot_busy = 0; start_retry_done = 0;
+      /* Back off instead of hammering: after the fifth quick retry the slot is
+       * owned by something else, and every open touches it again. */
+      static const unsigned delays[] = {30u, 60u, 120u, 300u};
+      static const char *const notes[] = {"30 s", "60 s", "2 min", "5 min"};
+      const int idx2 = start_wait_cycles < 4 ? start_wait_cycles : 3;
+      start_slot_busy = 0; start_retry_done = 0; start_wait_cycles++;
       FILE *sr = open_report("inject.txt", "a");
-      if (sr) { fprintf(sr, "Encoder slot busy after 5 attempts; retrying in 30 s\n"); fclose(sr); }
-      notify("PBS: encoder slot busy - will retry in 30 s (restart the console if it persists)");
-      usleep(30000000u);
+      if (sr) {
+        fprintf(sr, "Encoder slot busy after 5 attempts; next attempt in %s (cycle %d)\n",
+                notes[idx2], start_wait_cycles);
+        if (start_wait_cycles == 4)
+          fprintf(sr, "If this keeps failing the console needs a full power cycle, not a rest-mode wake\n");
+        fclose(sr);
+      }
+      notify("PBS: encoder slot busy - retrying soon (power cycle the console if it persists)");
+      usleep((uint64_t)delays[idx2] * 1000000u);
       goto avopen_retry;
     }
     /* Reconfigure only after closing handles, stopping the resource request,

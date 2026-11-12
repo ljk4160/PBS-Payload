@@ -8,6 +8,19 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix6.0（本 fork 的增强版）— 2026-11-12
+
+### 槽占用时改为递增退避（30 s → 5 min）
+
+- 现场统计（同一台主机、未重启）：19 次启动、**186 次 `Start() 0x81950008`**、
+  17 轮 “slot busy after 5 attempts”。固定 30 秒重试等于持续触碰编码器，
+  反而让槽更难释放。
+- 现在按 30 s → 60 s → 2 min → 5 min 递增退避，第 4 轮起在日志写
+  “the console needs a full power cycle, not a rest-mode wake”；`Start` 成功后
+  序号清零。
+- 结论：`0x81950008` 连续出现且重启后依旧，只能**完全关机再开机**（休息模式
+  唤醒不会重建编码器）；退避只是避免 payload 继续加剧占用。
+
 ## v0.4.0-beta5-fix5.9（本 fork 的增强版）— 2026-11-12
 
 ### 重新注入改为“先礼后兵”，不再留下占用的编码器槽
