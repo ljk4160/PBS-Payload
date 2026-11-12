@@ -8,6 +8,15 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix7.9（本 fork 的增强版）— 2026-11-12
+
+### ⧉ 键改为触摸板点击键
+
+- `ScePadButtonDataOffset` 没有 Create/Share 定义，16 个候选位实测全部无效，
+  因此把该键改成触摸板点击：`data-mask="1048576"`（0x100000），文案“触”，
+  与键盘 T 键使用同一位。
+- 只有这一处改动，其他按键（含 PS 0x10000 脉冲）保持原样。
+
 ## v0.4.0-beta5-fix7.8（本 fork 的增强版）— 2026-11-12
 
 ### 结论：虚拟手柄无法发送 Create/Share 键，探测键已移除
