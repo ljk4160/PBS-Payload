@@ -749,30 +749,42 @@ static void log_stream(int fd, const char *path) {
   const char *file = "/data/pbs/inject.txt";
   FILE *f = fopen(file, "r");
   if (!f) { send_all(fd, "(inject.txt not created yet)\n", 30); return; }
-  if (lines > 0 && fseek(f, 0, SEEK_END) == 0) {
-    long pos = ftell(f);
-    int seen = 0;
-    while (pos > 0 && seen <= lines) {
-      pos--;
-      if (fseek(f, pos, SEEK_SET)) break;
-      if (fgetc(f) == '\n') seen++;
+  /* Locate the tail by reading the last <=4 MB once and scanning that buffer:
+   * the previous byte-at-a-time fseek()/fgetc() scan cost hundreds of thousands
+   * of syscalls on a grown log and wedged the payload. */
+  long size = 0;
+  if (fseek(f, 0, SEEK_END) == 0) size = ftell(f);
+  if (size < 0) size = 0;
+  const long cap = 4L << 20;
+  const long from = size > cap ? size - cap : 0;
+  const size_t window = (size_t)(size - from);
+  if (window) {
+    char *tail = (char *)malloc(window);
+    if (tail && fseek(f, from, SEEK_SET) == 0 && fread(tail, 1, window, f) == window) {
+      size_t begin = 0;
+      if (lines > 0) {
+        int seen = 0;
+        for (long i = (long)window - 1; i >= 0; --i) {
+          if (tail[i] == (char)10 && ++seen > lines) { begin = (size_t)i + 1; break; }
+        }
+      }
+      if (begin < window && send_all(fd, tail + begin, window - begin)) { free(tail); fclose(f); return; }
     }
-    fseek(f, pos, SEEK_SET);
+    free(tail);
   }
   char buf[4096];
-  size_t n;
   const uint64_t started = milliseconds();
   while (milliseconds() - started < 600000u) {
-    n = fread(buf, 1, sizeof buf, f);
+    size_t n = fread(buf, 1, sizeof buf, f);
     if (n) { if (send_all(fd, buf, n)) break; continue; }
     long pos = ftell(f);
     usleep(250000);
     FILE *probe = fopen(file, "r");
     if (probe) {
       fseek(probe, 0, SEEK_END);
-      const long size = ftell(probe);
+      const long probe_size = ftell(probe);
       fclose(probe);
-      if (size < pos) { fclose(f); f = fopen(file, "r"); if (!f) break; }
+      if (probe_size < pos) { fclose(f); f = fopen(file, "r"); if (!f) return; }
     }
   }
   fclose(f);
