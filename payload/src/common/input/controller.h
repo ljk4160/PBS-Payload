@@ -3,7 +3,10 @@
 #include <stdint.h>
 
 #define PBS_INPUT_TOKEN_SIZE 33
-#define PBS_INPUT_BUTTONS 0x0013fffeu
+/* 0x20000 is the PS (home) button, 0x10000 is the screenshot/share button.
+ * Both are system keys on the pad report; the virtual device accepts them as
+ * regular bits, they were simply filtered out by this mask before. */
+#define PBS_INPUT_BUTTONS 0x0033fffeu
 typedef struct {
   uint32_t buttons;
   uint8_t lx, ly, rx, ry, l2, r2;

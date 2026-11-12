@@ -8,6 +8,17 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix6.7（本 fork 的增强版）— 2026-11-12
+
+### 虚拟手柄 PS 键无效
+
+- 原因：`PBS_INPUT_BUTTONS` 掩码是 `0x0013fffe`，把 **PS 键（0x20000）** 过滤掉了。
+  `/input/*` 收到 `buttons & ~PBS_INPUT_BUTTONS` 非零就整包拒绝，所以按 PS 什么都没发生
+  （截屏 0x10000 在掩码内，所以那个能用）。
+- 修复：掩码改为 `0x0033fffe`，放行 PS 位；平台层把 `buttons` 原样 32 位写进
+  `InsertData`，不再截断。
+- 若放行后主机仍忽略 PS（系统保留键），再改用“按一下发 2 帧脉冲”的方式重试。
+
 ## v0.4.0-beta5-fix6.6（本 fork 的增强版）— 2026-11-12
 
 ### 修复时间戳把一行拆成多段
