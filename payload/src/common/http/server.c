@@ -57,6 +57,7 @@ static struct {
   int bitrate_kbps;
   int resume_request;
   int parked_listener;
+  int video_clients;  /* only /frames streams: this is "how many viewers" */
   int profiles_enabled, profile_pending, profile_changing, profile_height, profile_error, profile_error_height;
   uint64_t profile_started;
   unsigned profile_mask;
@@ -612,9 +613,9 @@ static void status(int fd) {
   char body[1024];
   pthread_mutex_lock(&live.lock);
   double seconds = (milliseconds() - live.started) / 1000.0;
-  int n = snprintf(body, sizeof body, "{\"backend\":\"h264\",\"now_ms\":%llu,\"parked\":%s,\"width\":%d,\"height\":%d,\"frames\":%llu,\"bytes\":%llu,\"fps\":%.1f,\"kbps\":%.1f,\"clients\":%d,\"recording\":%s,\"recording_name\":\"%s\",\"recording_frames\":%llu,\"recording_bytes\":%llu,\"recording_seconds\":%.1f,\"recording_error\":%s,\"audio_chunks\":%llu,\"audio_bytes\":%llu,\"audio_kbps\":%.1f,\"audio_codec\":\"%s\"}",
+  int n = snprintf(body, sizeof body, "{\"backend\":\"h264\",\"now_ms\":%llu,\"parked\":%s,\"width\":%d,\"height\":%d,\"frames\":%llu,\"bytes\":%llu,\"fps\":%.1f,\"kbps\":%.1f,\"clients\":%d,\"viewers\":%d,\"recording\":%s,\"recording_name\":\"%s\",\"recording_frames\":%llu,\"recording_bytes\":%llu,\"recording_seconds\":%.1f,\"recording_error\":%s,\"audio_chunks\":%llu,\"audio_bytes\":%llu,\"audio_kbps\":%.1f,\"audio_codec\":\"%s\"}",
       (unsigned long long)(uint32_t)milliseconds(), parked ? "true" : "false", live.width, live.height, (unsigned long long)live.seq, (unsigned long long)live.bytes, seconds > 0 ? live.seq/seconds : 0,
-      seconds > 0 ? live.bytes*8/seconds/1000 : 0, live.clients, live.rec || live.rec_pending ? "true" : "false", live.rec_name,
+      seconds > 0 ? live.bytes*8/seconds/1000 : 0, live.clients, live.video_clients, live.rec || live.rec_pending ? "true" : "false", live.rec_name,
       (unsigned long long)live.rec_frames, (unsigned long long)live.rec_bytes,
       live.fps > 0 ? (double)live.rec_frames/live.fps : 0, live.rec_error ? "true" : "false",
       (unsigned long long)live.audio_chunks, (unsigned long long)live.audio_bytes,
@@ -842,10 +843,11 @@ static void *client_thread(void *arg) {
   int rtp_port = 0, consumed = 0;
   if (sscanf(path, "/rtp/video?port=%d%n", &rtp_port, &consumed) != 1 || path[consumed] || rtp_port < 1024 || rtp_port > 65534) rtp_port = 0;
   const int frames_lowlat = !strncmp(path, "/frames?lowlat=1", 15);
-  if (!strncmp(path, "/frames", 7) || !strcmp(path, "/audio") || rtp_port) {
+  const int is_video = !strncmp(path, "/frames", 7);
+  if (is_video || !strcmp(path, "/audio") || rtp_port) {
     pthread_mutex_lock(&live.lock);
     media = live.media_clients < 8;
-    if (media) live.media_clients++;
+    if (media) { live.media_clients++; if (is_video) live.video_clients++; }
     pthread_mutex_unlock(&live.lock);
     if (!media) { const char busy[] = "HTTP/1.1 503 Busy\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"; send_all(fd, busy, sizeof busy - 1); goto done; }
   }
@@ -946,7 +948,7 @@ done:
    * leave a stale numeric fd that another connection could have reused. */
   close(fd);
   live.worker_fd[client.slot] = -1;
-  live.clients--; if (media) live.media_clients--;
+  live.clients--; if (media) { live.media_clients--; if (is_video) live.video_clients--; }
   live.worker_active[client.slot] = 0;
   pthread_mutex_unlock(&live.lock);
   return NULL;

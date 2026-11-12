@@ -8,6 +8,18 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix6.4（本 fork 的增强版）— 2026-11-12
+
+### 纠正：`clients` 不是观众数，新增 `viewers`
+
+- `status.json` 的 `clients` 统计的是**所有活动 HTTP 连接**（页面、每秒轮询的
+  `/status.json` 与 `/config.json`、`/log`、`/frames`、`/audio`），所以数字会明显
+  大于实际观看人数——之前按它判断“有多少人在看”是错的。
+- 新增 `viewers` 字段：只统计 `/frames` 视频流，一个播放页面 = 1；音频单独建连
+  不计入。判断“几个观众”请看这个字段。
+- 日志统计的正确方式也写进说明：只取最后一次 `PBS startup` 之后的窗口，之前
+  会话的行不能混算。
+
 ## v0.4.0-beta5-fix6.3（本 fork 的增强版）— 2026-11-12
 
 ### 日志行不再互相穿插
