@@ -36,7 +36,7 @@ static void ps4_http_trace(const char *text) {
 
 #define SLOTS 64
 #define FRAME_MAX 0x200000u
-#define KEYFRAME_INTERVAL_MS 2000u
+#define KEYFRAME_INTERVAL_MS 4000u
 #define AUDIO_SLOTS 256
 #define AUDIO_MAX 0x10000u
 #include "common/http/recording_storage.h"
@@ -193,6 +193,7 @@ static void profile_reply(int fd, int code, const char *message) {
   send_all(fd, header, (size_t)h); send_all(fd, body, (size_t)n);
 }
 #include "common/http/controller_routes.h"
+#include "common/system/power.h"
 static void select_profile(int fd, const char *path) {
   int height = 0, consumed = 0, code = 200;
   const char *message = "Resolution change requested";
@@ -216,6 +217,34 @@ static void select_profile(int fd, const char *path) {
 /* Runtime bitrate ceiling. Applies live via sceAvcap2SetVideoBitrate on the
  * running session and to every later session restart, so the cap survives
  * resolution switches and stream recovery. 0 restores the startup rate. */
+/* Resolution + bitrate in one request: the UI's Apply button must not restart
+ * the capture twice, and a bitrate-only change needs a reopen too (the encoder
+ * rate group is written at OpenVideo time). */
+static void apply_profile_and_bitrate(int fd, const char *path) {
+  int height = 0, kbps = -1, consumed = 0, code = 200;
+  const char *message = "Applied";
+  if (sscanf(path, "/capture/apply?height=%d&kbps=%d%n", &height, &kbps, &consumed) != 2 ||
+      path[consumed]) {
+    profile_reply(fd, 400, "Invalid apply request"); return;
+  }
+  if (pbs_capture_profile_for_height(height, NULL)) { profile_reply(fd, 400, "Unsupported resolution"); return; }
+  if (kbps && (kbps < 1000 || kbps > 100000)) { profile_reply(fd, 422, "Bitrate out of range"); return; }
+  pthread_mutex_lock(&live.lock);
+  const int bitrate_changed = kbps != live.bitrate_kbps;
+  const int height_changed = height != live.height;
+  if (!live.profiles_enabled) { code = 501; message = "This capture backend does not support resolution changes"; }
+  else if (live.rec || live.rec_pending) { code = 409; message = "Stop recording before changing the profile"; }
+  else if (live.profile_changing) { code = 409; message = "A profile change is already in progress"; }
+  else if (!bitrate_changed && !height_changed) { message = "Already active"; }
+  else {
+    live.bitrate_kbps = kbps;
+    if (height_changed) { live.profile_height = height; live.profile_pending = live.profile_changing = 1;
+                          live.profile_error = live.profile_error_height = 0; }
+    live.restart_request = 1;
+  }
+  pthread_mutex_unlock(&live.lock);
+  profile_reply(fd, code, message);
+}
 static void select_bitrate(int fd, const char *path) {
   int kbps = 0, consumed = 0, code = 200;
   const char *message = "Bitrate limit applied";
@@ -226,7 +255,13 @@ static void select_bitrate(int fd, const char *path) {
     profile_reply(fd, 422, "Bitrate out of range (1000-100000 kbps)"); return;
   }
   pthread_mutex_lock(&live.lock);
+  const int changed = kbps != live.bitrate_kbps;
   live.bitrate_kbps = kbps;
+  /* SetVideoBitrate alone does not move the encoder: its rate group is fixed
+   * at OpenVideo time. Reopen the capture so the new cap is written into the
+   * request - but only when the value actually changed, otherwise every page
+   * load would interrupt the stream for nothing. */
+  if (changed) live.restart_request = 1;
   pthread_mutex_unlock(&live.lock);
   char body[128];
   int n = snprintf(body, sizeof body, "{\"kbps\":%d}", kbps);
@@ -356,7 +391,12 @@ int pbs_h264_take_keyframe_request(void) {
   int periodic = live.running &&
       now - live.last_keyframe_ms >= KEYFRAME_INTERVAL_MS &&
       now - live.last_key_request_ms >= KEYFRAME_INTERVAL_MS;
-  int result = live.key_request || periodic;
+  /* Explicit requests (viewer watchdog, resync after a ring overwrite) used to
+   * bypass the interval, so three viewers could each ask on every stall and the
+   * encoder answered with an IDR per frame - a 1.5k-request storm and a constant
+   * bitrate spike at low caps. Honour at most one per second. */
+  int explicit_ok = live.key_request && (now - live.last_key_request_ms >= 1000u);
+  int result = explicit_ok || periodic;
   live.key_request = 0;
   if (result) live.last_key_request_ms = now;
   pthread_mutex_unlock(&live.lock);
@@ -528,14 +568,14 @@ static void configuration(int fd) {
   if (!strcmp(live.audio_codec, "none")) snprintf(audio, sizeof audio, "null");
   else snprintf(audio, sizeof audio, "{\"codec\":\"%s\",\"channels\":%d,\"rate\":%d,\"bits\":32}",
       live.audio_codec[0] ? live.audio_codec : "pcm_f32le", live.audio_channels, live.audio_rate);
-  int n = snprintf(body, sizeof body, "{\"platform\":\"%s\",\"width\":%d,\"height\":%d,\"fps\":%d,\"codec\":\"avc1.%02x%02x%02x\",\"sps\":\"%s\",\"pps\":\"%s\",\"audio\":%s,\"resolutions\":%s,\"requested_height\":%d,\"profile_changing\":%s,\"profile_error\":%s,\"profile_error_height\":%d}", platform, live.width, live.height, live.fps, live.sps[1], live.sps[2], live.sps[3], sps, pps, audio,
-      resolutions, live.profile_changing ? live.profile_height : live.height,
+  int n = snprintf(body, sizeof body, "{\"platform\":\"%s\",\"width\":%d,\"height\":%d,\"fps\":%d,\"codec\":\"avc1.%02x%02x%02x\",\"sps\":\"%s\",\"pps\":\"%s\",\"audio\":%s,\"resolutions\":%s,\"cap_kbps\":%d,\"requested_height\":%d,\"profile_changing\":%s,\"profile_error\":%s,\"profile_error_height\":%d}", platform, live.width, live.height, live.fps, live.sps[1], live.sps[2], live.sps[3], sps, pps, audio,
+      resolutions, live.bitrate_kbps, live.profile_changing ? live.profile_height : live.height,
       live.profile_changing ? "true" : "false", live.profile_error ? "true" : "false", live.profile_error_height);
   pthread_mutex_unlock(&live.lock);
   if (n > 0 && (size_t)n < sizeof body) reply(fd, "application/json", body, (size_t)n);
 }
 static void status(int fd) {
-  char body[768];
+  char body[1024];
   pthread_mutex_lock(&live.lock);
   double seconds = (milliseconds() - live.started) / 1000.0;
   int n = snprintf(body, sizeof body, "{\"backend\":\"h264\",\"parked\":%s,\"width\":%d,\"height\":%d,\"frames\":%llu,\"bytes\":%llu,\"fps\":%.1f,\"kbps\":%.1f,\"clients\":%d,\"recording\":%s,\"recording_name\":\"%s\",\"recording_frames\":%llu,\"recording_bytes\":%llu,\"recording_seconds\":%.1f,\"recording_error\":%s,\"audio_chunks\":%llu,\"audio_bytes\":%llu,\"audio_kbps\":%.1f,\"audio_codec\":\"%s\"}",
@@ -756,6 +796,8 @@ static void *client_thread(void *arg) {
   } else if (!strcmp(method, "POST") && !strcmp(path, "/video/keyframe")) {
     pthread_mutex_lock(&live.lock); live.key_request = 1; pthread_mutex_unlock(&live.lock);
     reply(fd, "application/json", "{}", 2);
+  } else if (!strcmp(method, "POST") && !strncmp(path, "/capture/apply", 14)) {
+    apply_profile_and_bitrate(fd, path);
   } else if (!strcmp(method, "POST") && !strncmp(path, "/capture/profile", 16)) {
     select_profile(fd, path);
   } else if (!strcmp(method, "POST") && !strncmp(path, "/capture/bitrate", 16)) {
@@ -772,6 +814,15 @@ static void *client_thread(void *arg) {
   } else if (!strcmp(method, "POST") && !strcmp(path, "/stop")) {
     reply(fd, "application/json", "{}", 2);
     pbs_h264_server_stop();
+  } else if (!strcmp(method, "POST") &&
+             (!strcmp(path, "/system/standby") || !strcmp(path, "/system/reboot") ||
+              !strcmp(path, "/system/poweroff"))) {
+    /* Answer first: every one of these tears the network down. */
+    int action = path[8] == 's' ? PBS_POWER_STANDBY
+                 : path[8] == 'r' ? PBS_POWER_REBOOT
+                                  : PBS_POWER_OFF;
+    reply(fd, "application/json", "{\"ok\":true}", 11);
+    pbs_power_request(action);
   } else if (!strcmp(method, "POST") && !strcmp(path, "/capture/start")) {
     /* Wake the parked payload: the capture thread reopens the session. */
     pthread_mutex_lock(&live.lock);

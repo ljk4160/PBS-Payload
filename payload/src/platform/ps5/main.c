@@ -560,7 +560,7 @@ static int release_capture_step(void *opaque,pbs_ps5_release_step step) {
 int main(int argc, char **argv) {
   const char *mode = argc > 1 ? argv[1] : "avserve";
   if (strcmp(mode, "avserve")) { notify("PBS: use avserve [720p|1080p|1440p|2160p] [bitrate=N] [minqp=N] [norate] [offsetdump] [dependencydump] [moduledump] [noaudio] [nocontroller] [port]"); return 1; }
-  char *serve_args[] = {argv[0], "avopenfast", "SceRemotePlay", "grant", "11", "2", "0", "9999", "2560", "1440", "1"};
+  char *serve_args[] = {argv[0], "avopenfast", "SceRemotePlay", "grant", "12", "2", "0", "9999", "1280", "720", "1"};
 #if defined(PBS_PS5_DEFAULT_1080P)
   serve_args[4] = "12"; serve_args[8] = "1920"; serve_args[9] = "1080";
 #elif defined(PBS_PS5_DEFAULT_720P)
@@ -701,6 +701,25 @@ int main(int argc, char **argv) {
             PBS_PS5_RUNTIME_REVISION);
     fprintf(startup_report, "Controller compiled=%d enabled=%d\n",
             PBS_PS5_CONTROLLER, controller_enabled);
+
+    /* HEVC capability probe: avcap2 only exposes H.264 today. Resolve a set of
+     * plausible codec entry points once at startup so the console itself
+     * answers whether an HEVC switch exists. */
+    {
+      static const char *const codec_candidates[] = {
+        "sceAvcap2SetVideoCodec", "sceAvcap2SetCodec", "sceAvcap2SetEncodeCodec",
+        "sceAvcap2SetVideoFormat", "sceAvcap2SetEncodeParam", "sceAvcap2SetEncoderParam",
+        "sceAvcap2SetVideoParameter", "sceAvcap2SetCodecParam", "sceAvcap2GetVideoCodec",
+        "sceAvcap2GetSupportedCodec", "sceAvcap2EnableHevc", "sceAvcap2SetHevc"};
+      pid_t probe_pid = pbs_find_pid("SceRemotePlay");
+      fprintf(startup_report, "avcap2 codec probe pid=%d\n", (int)probe_pid);
+      if (probe_pid > 0) {
+        for (size_t i = 0; i < sizeof codec_candidates / sizeof codec_candidates[0]; ++i) {
+          intptr_t addr = pbs_resolve_in(probe_pid, "libSceAvcap2.sprx", codec_candidates[i]);
+          fprintf(startup_report, "  %s=%s\n", codec_candidates[i], addr ? "present" : "absent");
+        }
+      }
+    }
     fclose(startup_report);
   }
   if (module_file_dump) {
@@ -762,6 +781,15 @@ int main(int argc, char **argv) {
         !strcmp(mode, "avopenfast") ? capture_call_fast : capture_call;
     char failure_note[96] = "PBS: capture unavailable";
 avopen_retry:;
+    /* The web cap lives in the server state, not in argv: re-read it on every
+     * (re)open so a bitrate change survives the restart that applies it. */
+    if (live_request) {
+      int cap_now = pbs_h264_take_bitrate_request();
+      if (cap_now > 0) {
+        requested_video_bitrate = (uint32_t)cap_now * 1000;
+        requested_video_budget = requested_video_bitrate;
+      }
+    }
     uint32_t requested_resolution;
     if (pbs_ps5_resolution_mode(capture_firmware,height,&requested_resolution)) {
       notify("PBS: 1440p capture unavailable on this firmware; select 1080p or 2160p");

@@ -24,7 +24,8 @@
   return s;
  }
  function encode(sequence,s){return [sequence>>>0,s.buttons>>>0,s.lx,s.ly,s.rx,s.ry,s.l2,s.r2].join(',');}
- root.PBSController={neutral,stateFor,encode,get active(){return !!token;}};
+ const virt={buttons:0,lx:128,ly:128,rx:128,ry:128};
+ root.PBSController={neutral,stateFor,encode,virtual:virt,kick(){force=true;},get active(){return !!token;}};
  if(!root.document||!root.navigator)return;
  const doc=root.document,surface=doc.getElementById('controller-controls');
  if(!surface)return;
@@ -32,7 +33,8 @@
  let token='',sequence=0,busy=false,connecting=false,last='',lastSent=0,force=false,mouseX=0,mouseY=0;
  const keys=new Set();
  function reset(){keys.clear();mouseX=mouseY=0;force=true;}
- function reflect(){connect.disabled=connecting;disconnect.hidden=true;connect.dataset.on=token?'1':'0';connect.textContent=token?(window.pbsT?window.pbsT('disconnectController'):'Disconnect controller'):(window.pbsT?window.pbsT('connectController'):'Connect controller');}
+ function reflect(){connect.disabled=connecting;disconnect.hidden=true;connect.dataset.on=token?'1':'0';connect.textContent=token?(window.pbsT?window.pbsT('disconnectController'):'Disconnect controller'):(window.pbsT?window.pbsT('connectController'):'Connect controller');
+  if(window.pbsVirtualPad)window.pbsVirtualPad.setConnected(!!token);}
  async function command(path,body='',options={}){
   const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),800);
   try{
@@ -48,6 +50,7 @@
   if(!token)return;
   reset();
   try{await command('/input/disconnect');}catch(e){}
+  virt.buttons=0;virt.lx=virt.ly=virt.rx=virt.ry=128;
   token='';last='';reflect();
  }
  connect.addEventListener('click',async()=>{
@@ -71,6 +74,9 @@
    s=stateFor(pad,keys);
    if(mouseX||mouseY){s.rx=Math.max(0,Math.min(255,128+mouseX*6));s.ry=Math.max(0,Math.min(255,128+mouseY*6));mouseX=mouseY=0;}
   }
+  if(virt.buttons)s.buttons|=virt.buttons;
+  if(virt.lx!==128||virt.ly!==128){s.lx=virt.lx;s.ly=virt.ly;}
+  if(virt.rx!==128||virt.ry!==128){s.rx=virt.rx;s.ry=virt.ry;}
   s.rx=Math.round(s.rx);s.ry=Math.round(s.ry);
   const signature=encode(0,s),now=Date.now();
   if(!force&&signature===last&&now-lastSent<100)return;
