@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /* PBS streaming payload. Research commands remain in the legacy repository. */
 #define PBS_DATA_DIR "/data/pbs"
+#include <sys/time.h>
+#include <stdarg.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -15,6 +17,28 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+
+/* Every log line carries the console-local timestamp. The payload writes all of
+ * its diagnostics through fprintf() into /data/pbs/inject.txt, so prefixing at
+ * this single point covers the whole file. */
+static int pbs_log_fprintf(FILE *f, const char *fmt, ...) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  struct tm lt;
+  time_t sec = tv.tv_sec;
+  localtime_r(&sec, &lt);
+  char stamp[40];
+  size_t n = strftime(stamp, sizeof stamp, "%Y-%m-%d %H:%M:%S", &lt);
+  n += (size_t)snprintf(stamp + n, sizeof stamp - n, ".%03d ", (int)(tv.tv_usec / 1000));
+  if (n > sizeof stamp) n = sizeof stamp;
+  fwrite(stamp, 1, n, f);
+  va_list ap;
+  va_start(ap, fmt);
+  const int r = vfprintf(f, fmt, ap);
+  va_end(ap);
+  return r;
+}
+#define fprintf pbs_log_fprintf
 #include <ps5/kernel.h>
 
 

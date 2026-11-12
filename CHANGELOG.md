@@ -8,6 +8,15 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix6.5（本 fork 的增强版）— 2026-11-12
+
+### 日志每行带本机时区时间戳
+
+- payload 的所有诊断输出都走 `fprintf()` 写 `/data/pbs/inject.txt`，在 `fprintf`
+  上加了一层包装：先写 `YYYY-MM-DD HH:MM:SS.mmm `（`localtime_r`，即主机本地时区），
+  再输出原内容；毫秒便于对齐采集/重连事件。
+- 服务端的 `viewer detached` 行也用同样格式，两边的行混在同一文件里仍然可读。
+
 ## v0.4.0-beta5-fix6.4（本 fork 的增强版）— 2026-11-12
 
 ### 纠正：`clients` 不是观众数，新增 `viewers`

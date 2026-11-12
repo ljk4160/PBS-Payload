@@ -482,12 +482,22 @@ static void stream(int fd, int low_latency) {
   }
   pthread_mutex_unlock(&live.lock);
   {
-    /* One write(), starting on a fresh line: the payload writes this same file
-     * from another thread with several write() calls per line. */
+    /* One write starting on a fresh line; the payload writes this file from
+     * another thread, so both sides prefix the console-local timestamp. */
     int lf = open("/data/pbs/inject.txt", O_WRONLY | O_APPEND | O_CREAT, 0666);
     if (lf >= 0) {
-      static const char note[] = "\nviewer detached (send failed or timed out)\n";
-      (void)!write(lf, note, sizeof note - 1);
+      char note[128];
+      struct timeval tv;
+      gettimeofday(&tv, NULL);
+      struct tm lt;
+      time_t sec = tv.tv_sec;
+      localtime_r(&sec, &lt);
+      size_t ln = strftime(note, sizeof note, "%Y-%m-%d %H:%M:%S", &lt);
+      ln += (size_t)snprintf(note + ln, sizeof note - ln,
+                             ".%03d viewer detached (send failed or timed out)\n",
+                             (int)(tv.tv_usec / 1000));
+      if (ln > sizeof note) ln = sizeof note;
+      (void)!write(lf, note, ln);
       close(lf);
     }
   }
