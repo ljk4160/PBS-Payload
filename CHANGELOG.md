@@ -8,6 +8,15 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix7.3（本 fork 的增强版）— 2026-11-12
+
+### 输入校验放行全部按键位（此前 Share 候选位被 400 拒绝）
+
+- 浏览器控制台显示 `POST /input/state 400 (Profile)`：`PBS_INPUT_BUTTONS` 是
+  `0x0033fffe`，未包含 `0x80000` 等位，请求在服务端就被拒，根本没到主机，
+  所以测 Share 位时“毫无反应”是校验拦下来的，不是键位不对。
+- 掩码改为 `0xfffffffe`（除保留位 0 外全部放行），未知位由驱动忽略，不再整包拒绝。
+
 ## v0.4.0-beta5-fix7.2（本 fork 的增强版）— 2026-11-12
 
 ### 虚拟手柄 ⧉ 键改名 Share
