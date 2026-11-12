@@ -228,7 +228,7 @@ static void apply_profile_and_bitrate(int fd, const char *path) {
     profile_reply(fd, 400, "Invalid apply request"); return;
   }
   if (pbs_capture_profile_for_height(height, NULL)) { profile_reply(fd, 400, "Unsupported resolution"); return; }
-  if (kbps && (kbps < 1000 || kbps > 100000)) { profile_reply(fd, 422, "Bitrate out of range"); return; }
+  if (kbps && (kbps < 1000 || kbps > 150000)) { profile_reply(fd, 422, "Bitrate out of range"); return; }
   pthread_mutex_lock(&live.lock);
   const int bitrate_changed = kbps != live.bitrate_kbps;
   const int height_changed = height != live.height;
@@ -251,8 +251,8 @@ static void select_bitrate(int fd, const char *path) {
   if (sscanf(path, "/capture/bitrate?kbps=%d%n", &kbps, &consumed) != 1 || path[consumed]) {
     profile_reply(fd, 400, "Invalid bitrate"); return;
   }
-  if (kbps && (kbps < 1000 || kbps > 100000)) {
-    profile_reply(fd, 422, "Bitrate out of range (1000-100000 kbps)"); return;
+  if (kbps && (kbps < 1000 || kbps > 150000)) {
+    profile_reply(fd, 422, "Bitrate out of range (1000-150000 kbps)"); return;
   }
   pthread_mutex_lock(&live.lock);
   const int changed = kbps != live.bitrate_kbps;

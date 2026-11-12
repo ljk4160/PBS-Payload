@@ -166,7 +166,7 @@ dialog::backdrop{background:rgba(0,0,0,.8)}.preview-heading{display:flex;align-i
   <div class="vp-stick" data-stick="r" style="--x:87%;--y:80%"><i></i></div>
 </div></div>
 
-<div class="dock"><div class="dock-row"><button id="record">Record</button><button id="snapshot">Save snapshot</button><label class="res-inline" for="resolution"><span data-i18n="resolution">Resolution</span><select id="resolution" aria-label="Stream resolution"></select></label><label data-i18n="bitrateCap">Bitrate cap <select id="bitrate"><option value="0" data-i18n="bitrateAuto">Auto (60 Mbps)</option><option value="20000">20 Mbps</option><option value="10000">10 Mbps</option><option value="8000">8 Mbps</option><option value="6000">6 Mbps</option><option value="4000">4 Mbps</option><option value="2000">2 Mbps</option></select></label><button id="apply-resolution">Apply</button><a class="btn" id="download" hidden>Download recording</a><span class="dock-spacer"></span><button id="virtual-pad" class="vp-toggle" aria-pressed="false" data-i18n="virtualPad" hidden>虚拟手柄</button><button id="connect-controller" data-i18n="connectController">Connect controller</button><button id="disconnect-controller" hidden data-i18n="disconnectController">Disconnect controller</button><span id="controller-info" role="status" class="ctrl-state" hidden></span><label class="lang-inline"><span>Language</span><select id="lang"><option value="en">English</option><option value="zh">中文</option></select></label></div><div class="dock-row dock-sub"><label data-i18n="audioDelay">Audio delay <input id="delay" type="range" min="0" max="400" step="10" value="80"> <span id="delayval">80 ms</span></label><button id="low-latency" class="vp-toggle" aria-pressed="false" data-i18n="lowLatency">低延迟</button><span class="sys-actions"><button id="sys-standby" data-i18n="sysStandby">待机</button><button id="sys-reboot" data-i18n="sysReboot">重启</button><button id="sys-poweroff" class="danger" data-i18n="sysPoweroff">关机</button></span><span id="profile-info" aria-live="polite" hidden></span></div></div><section id="controller-controls" hidden></section>
+<div class="dock"><div class="dock-row"><button id="record">Record</button><button id="snapshot">Save snapshot</button><label class="res-inline" for="resolution"><span data-i18n="resolution">Resolution</span><select id="resolution" aria-label="Stream resolution"></select></label><label data-i18n="bitrateCap">Bitrate cap <select id="bitrate"><option value="0" data-i18n="bitrateAuto">Auto</option><option value="150000">150 Mbps</option><option value="120000">120 Mbps</option><option value="100000">100 Mbps</option><option value="60000">60 Mbps</option><option value="50000">50 Mbps</option><option value="30000">30 Mbps</option><option value="20000">20 Mbps</option><option value="10000">10 Mbps</option><option value="8000">8 Mbps</option><option value="6000">6 Mbps</option><option value="5000">5 Mbps</option><option value="4000">4 Mbps</option><option value="2000">2 Mbps</option></select></label><button id="apply-resolution">Apply</button><a class="btn" id="download" hidden>Download recording</a><span class="dock-spacer"></span><button id="virtual-pad" class="vp-toggle" aria-pressed="false" data-i18n="virtualPad" hidden>虚拟手柄</button><button id="connect-controller" data-i18n="connectController">Connect controller</button><button id="disconnect-controller" hidden data-i18n="disconnectController">Disconnect controller</button><span id="controller-info" role="status" class="ctrl-state" hidden></span><label class="lang-inline"><span>Language</span><select id="lang"><option value="en">English</option><option value="zh">中文</option></select></label></div><div class="dock-row dock-sub"><label data-i18n="audioDelay">Audio delay <input id="delay" type="range" min="0" max="400" step="10" value="80"> <span id="delayval">80 ms</span></label><button id="low-latency" class="vp-toggle" aria-pressed="false" data-i18n="lowLatency">低延迟</button><span class="sys-actions"><button id="sys-standby" data-i18n="sysStandby">待机</button><button id="sys-reboot" data-i18n="sysReboot">重启</button><button id="sys-poweroff" class="danger" data-i18n="sysPoweroff">关机</button></span><span id="profile-info" aria-live="polite" hidden></span></div></div><section id="controller-controls" hidden></section>
 <section class="keymap" aria-label="Controller key map"><h3 data-i18n="keymapTitle">Keyboard &amp; controller keys</h3><div class="keymap-grid"><div class="keymap-item"><kbd>↑ ↓ ← →</kbd><span data-i18n="kmDpad"></span></div><div class="keymap-item"><kbd>W A S D</kbd><span data-i18n="kmMove"></span></div><div class="keymap-item"><kbd>I J K L</kbd><span data-i18n="kmLook"></span></div><div class="keymap-item"><kbd>空格 / X</kbd><span data-i18n="kmCross"></span></div><div class="keymap-item"><kbd>C</kbd><span data-i18n="kmCircle"></span></div><div class="keymap-item"><kbd>Z</kbd><span data-i18n="kmSquare"></span></div><div class="keymap-item"><kbd>V</kbd><span data-i18n="kmTriangle"></span></div><div class="keymap-item"><kbd>Q / E</kbd><span data-i18n="kmL1"></span></div><div class="keymap-item"><kbd>R / F</kbd><span data-i18n="kmL2"></span></div><div class="keymap-item"><kbd>Enter</kbd><span data-i18n="kmOptions"></span></div><div class="keymap-item"><kbd>Backspace</kbd><span data-i18n="kmPs"></span></div><div class="keymap-item"><kbd>P</kbd><span data-i18n="kmCapture"></span></div><div class="keymap-item"><kbd>T</kbd><span data-i18n="kmTouch"></span></div><div class="keymap-item"><kbd>右键拖动</kbd><span data-i18n="kmMouse"></span></div><div class="keymap-item"><kbd>ESC / Ctrl+Alt</kbd><span data-i18n="kmExit"></span></div></div></section><details class="storage-settings"><summary data-i18n="recordingStorage">Recording storage</summary><label><span data-i18n="consoleDirectory">Console directory</span> <input id="record-directory" type="text" maxlength="255" autocomplete="off" spellcheck="false"></label><button id="save-directory" data-i18n="saveDestination">Save destination</button><p id="storage-info" role="status" data-i18n="loadingDestination">Loading destination...</p></details>
 <dialog id="preview-dialog"><div class="preview-heading"><strong id="preview-title" data-i18n="previewTitle">Preview</strong><button id="close-preview">Close preview</button></div><p id="preview-status" role="status"></p><div id="preview-content"></div><a id="preview-download" class="btn" download>Download</a></dialog>
 <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-description"><h2 id="delete-title" data-i18n="deleteTitle">Delete recording?</h2><p id="delete-description"></p><form method="dialog"><button value="cancel" autofocus data-i18n="deleteCancel">Cancel</button><button value="delete" data-i18n="deleteConfirm">Delete recording</button></form></dialog>
@@ -338,7 +338,8 @@ async function refreshProfiles(){
 }
 applyResolution.onclick=async()=>{
  applyResolution.disabled=resolution.disabled=bitrateSel.disabled=true;
- try{const r=await fetchWithTimeout('/capture/apply?height='+encodeURIComponent(document.getElementById('resolution').value)+'&kbps='+encodeURIComponent(document.getElementById('bitrate').value),{method:'POST'});const body=await r.json();if(!r.ok)throw new Error(body.message||window.pbsT('resFail'));await refreshProfiles();}
+ abrDrops=0;abrStreak=0;
+ try{const r=await fetchWithTimeout('/capture/apply?height='+encodeURIComponent(document.getElementById('resolution').value)+'&kbps='+encodeURIComponent(selectedKbps()),{method:'POST'});const body=await r.json();if(!r.ok)throw new Error(body.message||window.pbsT('resFail'));await refreshProfiles();}
  catch(e){profileInfo.textContent=e.message;applyResolution.disabled=resolution.disabled=bitrateSel.disabled=false;}
 };
 let recordingDirectory='';
@@ -779,20 +780,32 @@ applyLowLat();
 /* Adaptive bitrate: the link cannot carry the chosen cap, so frames queue up
  * and the measured transit delay climbs (typ. 600-1000 ms). Step the cap down
  * once the delay stays high, never step back up automatically. */
-const ABR_STEPS=[20000,10000,8000,6000,4000,2000];
+/* Ladder shared by the dropdown and the adaptive logic (kbps). */
+const ABR_LADDER=[150000,120000,100000,60000,50000,30000,20000,10000,8000,6000,5000,4000,2000];
+const abrCap=()=>Number(localStorage.getItem('pbs-abr-cap'))||20000;
+/* Auto sends the current adaptive cap; a fixed choice is sent verbatim. */
+function selectedKbps(){
+  const sel=document.getElementById('bitrate');
+  if(!sel)return 0;
+  return sel.value==='0'?abrCap():Number(sel.value);
+}
+/* Auto only: the link cannot carry the cap, so frames queue and the measured
+ * transit delay climbs. Step the internal cap down; fixed selections never
+ * change on their own. */
 let abrStreak=0,abrLastDrop=0,abrDrops=0;
 function abrTick(){
-  if(stopped||abrDrops>=3||typeof frameDelayMs!=='number'||frameDelayMs===null)return;
+  const sel=document.getElementById('bitrate');
+  if(stopped||!sel||sel.value!=='0'||abrDrops>=3)return;
+  if(typeof frameDelayMs!=='number'||frameDelayMs===null)return;
   if(frameDelayMs>400)abrStreak++;else abrStreak=0;
   if(abrStreak<5)return;
   abrStreak=0;
   if(Date.now()-abrLastDrop<20000)return;
-  const sel=document.getElementById('bitrate');if(!sel)return;
-  const cur=Number(sel.value)||20000;
-  const next=ABR_STEPS.find(v=>v<cur);
+  const cur=abrCap();
+  const next=ABR_LADDER.find(v=>v<cur);
   if(!next)return;
   abrDrops++;abrLastDrop=Date.now();
-  sel.value=String(next);localStorage.setItem('pbs-bitrate',sel.value);
+  localStorage.setItem('pbs-abr-cap',String(next));
   const hsel=document.getElementById('resolution');
   fetch('/capture/apply?height='+encodeURIComponent(hsel?hsel.value:'720')+'&kbps='+next,{method:'POST'}).then(()=>{
     const m=document.getElementById('message');
@@ -987,7 +1000,11 @@ document.getElementById('delay').oninput=(e)=>{const v=Number(e.target.value);do
 const bitrateSel=document.getElementById('bitrate');
 const savedBitrate=localStorage.getItem('pbs-bitrate');
 bitrateSel.value=savedBitrate!==null?savedBitrate:'0';
-bitrateSel.onchange=()=>{localStorage.setItem('pbs-bitrate',bitrateSel.value);};
+bitrateSel.onchange=()=>{
+ localStorage.setItem('pbs-bitrate',bitrateSel.value);
+ /* back to Auto means a fresh adaptive run starting at 20 Mbps */
+ if(bitrateSel.value==='0')localStorage.removeItem('pbs-abr-cap');
+};
 if(savedBitrate===null){
  fetchWithTimeout('/config.json').then(r=>r.json()).then(c=>{
   if(typeof c.cap_kbps==='number'&&c.cap_kbps>0)bitrateSel.value=String(c.cap_kbps);
