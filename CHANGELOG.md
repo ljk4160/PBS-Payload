@@ -8,6 +8,13 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix7.2（本 fork 的增强版）— 2026-11-12
+
+### 虚拟手柄 ⧉ 键改名 Share
+
+- 该键在 DualSense 上叫 Create/Share，不是“截屏”；把手柄按钮的 `title`/`aria-label`
+  从「截屏」改为「Share」，掩码保持 `0x20000` 不变，其他按键一律未动。
+
 ## v0.4.0-beta5-fix6.9（本 fork 的增强版）— 2026-11-12
 
 ### PS 键位纠正：PS = 0x10000（原来填成了 0x20000）
