@@ -8,6 +8,15 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix7.8（本 fork 的增强版）— 2026-11-12
+
+### 结论：虚拟手柄无法发送 Create/Share 键，探测键已移除
+
+- 14 个未映射位（0x1、0x40000、0x80000、0x200000 … 0x80000000）逐个实测**全部无反应**，
+  加上此前的 0x20000，说明 `scePadVirtualDeviceInsertData` 的 32 位按键字里
+  没有 Create/Share 位——系统不通过这条路径暴露该键。
+- A–N 探测键已删除，其他按键未做任何改动；⧉ 键仍保留但无有效位可映射。
+
 ## v0.4.0-beta5-fix7.7（本 fork 的增强版）— 2026-11-12
 
 ### 临时加入 A–N 探测键，用于确定 ⧉（Share）位
