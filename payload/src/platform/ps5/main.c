@@ -106,7 +106,7 @@ static int applied_bitrate_kbps;
 /* Start() 0x81950008 = the encoder slot for this feature is still owned by a
  * dying session. A fresh open a second later usually succeeds, so retry the
  * whole open a couple of times before giving up. */
-static int audio_s16 = 1;   /* 16-bit PCM: 1.5 Mbps instead of 3 Mbps per viewer */
+static int audio_codec = 2;  /* 0 = f32 (3 Mbps), 1 = s16 (1.5), 2 = IMA ADPCM (0.38) */
 static int start_slot_busy;   /* Start() reported 0x81950008 */
 static int start_retry_done;   /* full reopens already spent on it */
 static int alt_profile_tried;   /* tried the other feature slot once */
@@ -177,6 +177,34 @@ static uint64_t capture_clock_90k(void) {
   return (uint64_t)t.tv_sec * 90000 + (uint64_t)t.tv_nsec * 9 / 100000;
 }
 
+/* IMA ADPCM (4 bit/sample) tables: 384 kbps stereo at 48 kHz instead of
+ * 1536 kbps for s16 PCM, with the same decoder cost as a table lookup. */
+static const int pbs_ima_index[16] = {-1,-1,-1,-1,2,4,6,8,-1,-1,-1,-1,2,4,6,8};
+static const int pbs_ima_step[89] = {
+    7,8,9,10,11,12,13,14,16,17,19,21,23,25,28,31,34,37,41,45,50,55,60,66,73,80,88,97,107,118,
+    130,143,157,173,190,209,230,253,279,307,337,371,408,449,494,544,598,658,724,796,876,963,
+    1060,1166,1282,1411,1552,1707,1878,2066,2272,2499,2749,3024,3327,3660,4026,4428,4871,5358,
+    5894,6484,7132,7845,8630,9493,10442,11487,12635,13899,15289,16818,18500,20350,22385,24623,
+    27086,29794,32767};
+static int pbs_ima_encode(int sample, int *pred, int *index) {
+  int step = pbs_ima_step[*index];
+  int diff = sample - *pred;
+  int sign = 0;
+  if (diff < 0) { sign = 8; diff = -diff; }
+  int delta = step >> 3;
+  int code = 0;
+  if (diff >= step) { code |= 4; diff -= step; delta += step; }
+  if (diff >= (step >> 1)) { code |= 2; diff -= (step >> 1); delta += (step >> 1); }
+  if (diff >= (step >> 2)) { code |= 1; delta += (step >> 2); }
+  int next = *pred + (sign ? -delta : delta);
+  if (next > 32767) next = 32767; else if (next < -32768) next = -32768;
+  *pred = next;
+  int ni = *index + pbs_ima_index[code | sign];
+  if (ni < 0) ni = 0; else if (ni > 88) ni = 88;
+  *index = ni;
+  return code | sign;
+}
+
 typedef struct {
   uint64_t handle;
   intptr_t read_fn, stop_fn, close_fn, alloc_fn, free_fn;
@@ -185,6 +213,9 @@ typedef struct {
   uint64_t packets, bytes;
   int publish; /* Publish audio blocks to the HTTP server instead of a file. */
   int to_s16;  /* Publish 16-bit PCM (half the wire bytes) instead of float32. */
+  int adpcm;   /* 4-bit IMA per channel, packed as (L<<4)|R per frame. */
+  int ima_index[2];
+  int ima_pred[2];
   int analyze; /* Accumulate float32 sample statistics. */
   uint32_t last_pts;
   uint32_t vol_original;
@@ -304,7 +335,24 @@ static void pbs_audio_drain(FILE *f, pbs_inject_t *ctx, pbs_audio_t *audio, unsi
     uint32_t pts = 0;
     memcpy(&pts, info + 8, sizeof pts);
     audio->last_pts = pts;
-    if (audio->publish) {
+    if (audio->publish && audio->adpcm) {
+      /* f32 stereo -> 4-bit IMA per channel, packed one byte per frame as
+       * (left<<4)|right: 384 kbps at 48 kHz. */
+      static unsigned char conv[8192];
+      const float *src = (const float *)frame;
+      int frames = count / 8;
+      if (frames > (int)sizeof conv) frames = (int)sizeof conv;
+      for (int i2 = 0; i2 < frames; ++i2) {
+        int l = (int)(src[i2 * 2] * 32767.0f);
+        int r = (int)(src[i2 * 2 + 1] * 32767.0f);
+        if (l > 32767) l = 32767; else if (l < -32768) l = -32768;
+        if (r > 32767) r = 32767; else if (r < -32768) r = -32768;
+        const int nl = pbs_ima_encode(l, &audio->ima_pred[0], &audio->ima_index[0]);
+        const int nr = pbs_ima_encode(r, &audio->ima_pred[1], &audio->ima_index[1]);
+        conv[i2] = (unsigned char)((nl << 4) | nr);
+      }
+      if (pbs_audio_publish(conv, (size_t)frames, pts)) break;
+    } else if (audio->publish) {
       if (audio->to_s16) {
         static int16_t conv[16384];
         int samples = count / 4;
@@ -380,7 +428,9 @@ static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int secon
   if (requested_video_bitrate && !bitrate_after_start) set_video_bitrate(f, ctx, handle);
   pbs_audio_t audio;
   memset(&audio, 0, sizeof audio);
-  if (audio_mode == 2 && !pbs_audio_open(f, ctx, &audio, capture_feature, 0)) { audio.publish = 1; audio.to_s16 = audio_s16; }
+  if (audio_mode == 2 && !pbs_audio_open(f, ctx, &audio, capture_feature, 0)) {
+    audio.publish = 1; audio.adpcm = audio_codec == 2; audio.to_s16 = audio_codec == 1;
+  }
   long rc = capture_call_fast(ctx, start, (uint64_t[6]){handle, 0, 0, 0, 0, 0});
   fprintf(f, "Start() -> %s\n", fmt_rc(rc));
   if (rc != LONG_MIN && (uint32_t)rc == 0x81950008u && serving) start_slot_busy = 1;
@@ -439,7 +489,10 @@ static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int secon
               stream_failure[0] = 0;
               if (bound_port && bound_port != port)
                 fprintf(f, "port %d busy, serving on %d\n", port, bound_port);
-              if (audio.publish) pbs_audio_configure(audio_s16 ? "pcm_s16le" : "pcm_f32le", 2, 48000);
+              if (audio.publish)
+                pbs_audio_configure(audio_codec == 2 ? "adpcm_ima"
+                                     : audio_codec == 1 ? "pcm_s16le" : "pcm_f32le",
+                                    2, 48000);
               /* Capture recovery/profile changes keep this payload instance alive. */
               if (first_start) {
                 notify("PBS - Made By Seregonwar\n"
@@ -656,7 +709,8 @@ int main(int argc, char **argv) {
       if (!strcmp(argv[i], "moduledump")) continue;
       if (!strcmp(argv[i], "nocontroller")) continue;
       if (!strcmp(argv[i], "noaudio")) { audio_mode = 0; continue; }
-      if (!strcmp(argv[i], "audio32")) { audio_s16 = 0; continue; }
+      if (!strcmp(argv[i], "audio16")) { audio_codec = 1; continue; }
+      if (!strcmp(argv[i], "audio32")) { audio_codec = 0; continue; }
       if (!strcmp(argv[i], "720p")) { automatic_resolution = 0; serve_args[4] = "12"; serve_args[8] = "1280"; serve_args[9] = "720"; continue; }
       if (!strcmp(argv[i], "1080p")) { automatic_resolution = 0; serve_args[4] = "12"; serve_args[8] = "1920"; serve_args[9] = "1080"; continue; }
       if (!strcmp(argv[i], "1440p") || !strcmp(argv[i], "2k")) { automatic_resolution = 0; serve_args[4] = "11"; serve_args[8] = "2560"; serve_args[9] = "1440"; continue; }

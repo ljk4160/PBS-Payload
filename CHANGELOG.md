@@ -8,6 +8,17 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix5.6（本 fork 的增强版）— 2026-11-12
+
+### 音频改用 IMA ADPCM：每位观众 1536 → 384 kbps
+
+- 采集到的 float32 立体声在 payload 内转 int16，再按 4 bit/样本做 IMA ADPCM，
+  每帧打成一个字节 `(L<<4)|R`；48 kHz 立体声 = **384 kbps**（原来 s16 是 1536）。
+- `/config.json` 的 audio 描述变为 `{"codec":"adpcm_ima","channels":2,"rate":48000,"bits":4}`；
+  查看器新增 `adpcm_ima` 解码分支（同样的 IMA 表，状态跨 chunk 保持，音频重新连接时复位）。
+- 回环测试（440 Hz + 3 kHz 复合信号，1 秒）：**SNR 40.3 dB**，属 4-bit ADPCM 正常水平。
+- 保留降级开关：`audio16` 用 16 位 PCM（1536 kbps）、`audio32` 用原始 float32（3072 kbps）。
+
 ## v0.4.0-beta5-fix5.5（本 fork 的增强版）— 2026-11-12
 
 ### 编码器槽卡死：重试更久 + 换 feature 槽

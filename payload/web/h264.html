@@ -910,13 +910,43 @@ const AQ={chunks:[],head:0,recv:0,played:0,under:0,ch:2,rate:48000,delayMs:80,pe
  },
  total(){const ch=this.ch;return this.chunks.reduce((n,a)=>n+a.length/ch,0);}
 };
+const IMA_INDEX_T=new Int8Array([-1,-1,-1,-1,2,4,6,8,-1,-1,-1,-1,2,4,6,8]);
+const IMA_STEP_T=new Int32Array([7,8,9,10,11,12,13,14,16,17,19,21,23,25,28,31,34,37,41,45,50,55,60,66,73,80,88,97,107,118,130,143,157,173,190,209,230,253,279,307,337,371,408,449,494,544,598,658,724,796,876,963,1060,1166,1282,1411,1552,1707,1878,2066,2272,2499,2749,3024,3327,3660,4026,4428,4871,5358,5894,6484,7132,7845,8630,9493,10442,11487,12635,13899,15289,16818,18500,20350,22385,24623,27086,29794,32767]);
+let imaState=null;
 function pcmToFloat(bytes,format,ch){
+ if(format==='adpcm_ima'){
+  /* One byte per stereo frame: high nibble = left, low nibble = right.
+   * State carries across chunks (the stream is ordered, so no resync). */
+  if(!imaState||imaState.ch!==2)imaState={ch:2,idx:new Uint8Array(2),pred:new Int32Array(2)};
+  const frames=bytes.length,out=new Float32Array(frames*2);
+  for(let i=0;i<frames;i++){
+   const b=bytes[i];
+   for(let c=0;c<2;c++){
+    const nib=c===0?((b>>4)&15):(b&15);
+    const step=IMA_STEP_T[imaState.idx[c]];
+    let diff=step>>3;
+    if(nib&1)diff+=step>>2;
+    if(nib&2)diff+=step>>1;
+    if(nib&4)diff+=step;
+    let p=imaState.pred[c]+((nib&8)?-diff:diff);
+    if(p>32767)p=32767;else if(p<-32768)p=-32768;
+    imaState.pred[c]=p;
+    let ni=imaState.idx[c]+IMA_INDEX_T[nib];
+    if(ni<0)ni=0;else if(ni>88)ni=88;
+    imaState.idx[c]=ni;
+    out[i*2+c]=p/32768;
+   }
+  }
+  return out;
+ }
+
  if(format==='pcm_s16le'){const s=new Int16Array(bytes.buffer,bytes.byteOffset,bytes.length>>1);const f=new Float32Array(s.length);for(let i=0;i<s.length;i++)f[i]=s[i]/32768;return f;}
  if(format==='pcm_s32le'){const s=new Int32Array(bytes.buffer,bytes.byteOffset,bytes.length>>2);const f=new Float32Array(s.length);for(let i=0;i<s.length;i++)f[i]=s[i]/2147483648;return f;}
  const f=bytes.length&3?bytes.length-(bytes.length&3):bytes.length;
  return new Float32Array(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+f));
 }
 async function startAudio(){
+ imaState=null;
  if(audioOn||audioStarting)return;
  audioStarting=true;
  try{

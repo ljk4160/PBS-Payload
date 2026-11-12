@@ -576,7 +576,7 @@ static void configuration(int fd) {
   if (!strcmp(live.audio_codec, "none")) snprintf(audio, sizeof audio, "null");
   else snprintf(audio, sizeof audio, "{\"codec\":\"%s\",\"channels\":%d,\"rate\":%d,\"bits\":%d}",
       live.audio_codec[0] ? live.audio_codec : "pcm_f32le", live.audio_channels, live.audio_rate,
-      strstr(live.audio_codec, "s16") ? 16 : 32);
+      strstr(live.audio_codec, "adpcm") ? 4 : strstr(live.audio_codec, "s16") ? 16 : 32);
   int n = snprintf(body, sizeof body, "{\"platform\":\"%s\",\"width\":%d,\"height\":%d,\"fps\":%d,\"codec\":\"avc1.%02x%02x%02x\",\"sps\":\"%s\",\"pps\":\"%s\",\"audio\":%s,\"resolutions\":%s,\"cap_kbps\":%d,\"requested_height\":%d,\"profile_changing\":%s,\"profile_error\":%s,\"profile_error_height\":%d}", platform, live.width, live.height, live.fps, live.sps[1], live.sps[2], live.sps[3], sps, pps, audio,
       resolutions, live.bitrate_kbps, live.profile_changing ? live.profile_height : live.height,
       live.profile_changing ? "true" : "false", live.profile_error ? "true" : "false", live.profile_error_height);
