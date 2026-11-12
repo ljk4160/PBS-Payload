@@ -148,7 +148,7 @@ static int write_pad(void *unused, const pbs_input_state *state) {
   float orientation_w = 1.0f;
   memcpy(data + 0x18, &orientation_w, 4);
   int rc = pad.insert((int)pad.device, data);
-  if (state->buttons & 0x20000u) {
+  if (state->buttons & 0x10000u) {
     /* PS is a system key: log what reached the driver and what it answered so a
      * rejected tap is visible instead of silent. */
     FILE *lf = fopen("/data/pbs/inject.txt", "a");
