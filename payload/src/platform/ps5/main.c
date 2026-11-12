@@ -88,6 +88,11 @@ static FILE *open_report(const char *name, const char *mode) {
   return f;
 }
 
+/* SIGTERM/SIGINT: leave the capture loop so the normal cleanup path runs and
+ * the encoder slot is released. A SIGKILL (what "replace previous instance"
+ * used to send) skips that, which is how the slot got wedged. */
+static volatile sig_atomic_t pbs_terminate;
+static void pbs_on_term(int sig) { (void)sig; pbs_terminate = 1; }
 static unsigned char scratch_zero[4096];
 static uint32_t requested_video_bitrate;
 static uint32_t requested_video_budget;
@@ -518,7 +523,7 @@ static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int secon
     measurement_start = capture_clock_ms();
     const uint64_t video_clock_start = capture_clock_90k();
     while ((serving ? pbs_h264_server_running() && (!stress_live || capture_clock_ms() < until)
-                    : capture_clock_ms() < until) && !ctx->asserted) {
+                    : capture_clock_ms() < until) && !ctx->asserted && !pbs_terminate) {
       if (serving && pbs_h264_take_restart_request()) { recover = 1; fprintf(f, "capture restart requested\n"); break; }
       int key_requested = serving && pbs_h264_take_keyframe_request();
       /* Live bitrate ceiling from the web UI: apply once per change, then a
@@ -740,7 +745,14 @@ int main(int argc, char **argv) {
     int killed = 0;
     for (int i = 0; i < count; i++) {
       if (pids[i] == self || pids[i] <= 0) continue;
-      kill(pids[i], SIGKILL);
+      /* Ask first: a graceful exit releases the avcap2 session. Only kill -9
+       * a process that is still alive after two seconds. */
+      kill(pids[i], SIGTERM);
+      for (int w = 0; w < 20; ++w) {
+        if (kill(pids[i], 0)) break;
+        usleep(100000);
+      }
+      if (!kill(pids[i], 0)) kill(pids[i], SIGKILL);
       killed++;
     }
     if (killed) {
@@ -771,6 +783,8 @@ int main(int argc, char **argv) {
       notify("PBS: replaced previous instance");
     }
   }
+  signal(SIGTERM, pbs_on_term);
+  signal(SIGINT, pbs_on_term);
   FILE *startup_report = open_report("inject.txt", "a");
   if (startup_report) {
     uint32_t firmware = kernel_get_fw_version();
@@ -1220,6 +1234,11 @@ avopen_cleanup:;
       fprintf(f, "OpenVideo failure quarantined; no automatic reopen in this payload execution\n");
     pbs_inject_end(&ctx);
     fclose(f);
+    if (pbs_terminate) {
+      FILE *tr = open_report("inject.txt", "a");
+      if (tr) { fprintf(tr, "terminated by signal; capture released\n"); fclose(tr); }
+      return 0;
+    }
     if (retry_lower) {
       retry_lower = 0; open_retry_done = 1;
       width = 1920; height = 1080; capture_feature = 12;

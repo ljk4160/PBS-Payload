@@ -8,6 +8,19 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix5.9（本 fork 的增强版）— 2026-11-12
+
+### 重新注入改为“先礼后兵”，不再留下占用的编码器槽
+
+- 事实澄清：`PBS replace: killed N previous instance(s)` 杀的是 **payload 自己的进程**，
+  而编码器槽属于目标进程（SceRemotePlay）。`SIGKILL` 跳过了
+  Stop/Close/ChangeState/Terminate，槽就留在目标进程里——**反复重注入本身就是
+  把槽打满的原因**。
+- 现在：注入时先对旧实例发 `SIGTERM`，最多等 2 秒让它在正常路径里释放采集，
+  只有还活着才 `SIGKILL`；采集循环增加 `pbs_terminate` 检查，收到信号后跳出、
+  走完整 cleanup 再退出，日志写 `terminated by signal; capture released`。
+- 因此正常替换不再需要重启主机；只有旧版本留下的脏槽仍需重启一次。
+
 ## v0.4.0-beta5-fix5.8（本 fork 的增强版）— 2026-11-12
 
 ### 启动失败不再直接退出，改为持续等待编码器槽
