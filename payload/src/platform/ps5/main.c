@@ -106,6 +106,7 @@ static int applied_bitrate_kbps;
 /* Start() 0x81950008 = the encoder slot for this feature is still owned by a
  * dying session. A fresh open a second later usually succeeds, so retry the
  * whole open a couple of times before giving up. */
+static int audio_s16 = 1;   /* 16-bit PCM: 1.5 Mbps instead of 3 Mbps per viewer */
 static int start_slot_busy;   /* Start() reported 0x81950008 */
 static int start_retry_done;   /* full reopens already spent on it */
 static int applied_bitrate_kbps;
@@ -182,6 +183,7 @@ typedef struct {
   FILE *raw, *info;
   uint64_t packets, bytes;
   int publish; /* Publish audio blocks to the HTTP server instead of a file. */
+  int to_s16;  /* Publish 16-bit PCM (half the wire bytes) instead of float32. */
   int analyze; /* Accumulate float32 sample statistics. */
   uint32_t last_pts;
   uint32_t vol_original;
@@ -302,7 +304,18 @@ static void pbs_audio_drain(FILE *f, pbs_inject_t *ctx, pbs_audio_t *audio, unsi
     memcpy(&pts, info + 8, sizeof pts);
     audio->last_pts = pts;
     if (audio->publish) {
-      if (pbs_audio_publish(frame, (size_t)count, pts)) break;
+      if (audio->to_s16) {
+        static int16_t conv[16384];
+        int samples = count / 4;
+        if (samples > (int)(sizeof conv / sizeof conv[0])) samples = (int)(sizeof conv / sizeof conv[0]);
+        const float *src = (const float *)frame;
+        for (int k = 0; k < samples; ++k) {
+          float v = src[k];
+          if (v > 1.0f) v = 1.0f; else if (v < -1.0f) v = -1.0f;
+          conv[k] = (int16_t)(v * 32767.0f);
+        }
+        if (pbs_audio_publish(conv, (size_t)samples * 2, pts)) break;
+      } else if (pbs_audio_publish(frame, (size_t)count, pts)) break;
     } else {
       if (audio->info) { uint32_t size = (uint32_t)count; fwrite(&size, 1, 4, audio->info); fwrite(info, 1, 16, audio->info); }
       if (audio->raw) fwrite(frame, 1, count, audio->raw);
@@ -366,7 +379,7 @@ static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int secon
   if (requested_video_bitrate && !bitrate_after_start) set_video_bitrate(f, ctx, handle);
   pbs_audio_t audio;
   memset(&audio, 0, sizeof audio);
-  if (audio_mode == 2 && !pbs_audio_open(f, ctx, &audio, capture_feature, 0)) audio.publish = 1;
+  if (audio_mode == 2 && !pbs_audio_open(f, ctx, &audio, capture_feature, 0)) { audio.publish = 1; audio.to_s16 = audio_s16; }
   long rc = capture_call_fast(ctx, start, (uint64_t[6]){handle, 0, 0, 0, 0, 0});
   fprintf(f, "Start() -> %s\n", fmt_rc(rc));
   if (rc != LONG_MIN && (uint32_t)rc == 0x81950008u && serving) start_slot_busy = 1;
@@ -424,7 +437,7 @@ static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int secon
               stream_failure[0] = 0;
               if (bound_port && bound_port != port)
                 fprintf(f, "port %d busy, serving on %d\n", port, bound_port);
-              if (audio.publish) pbs_audio_configure("pcm_f32le", 2, 48000);
+              if (audio.publish) pbs_audio_configure(audio_s16 ? "pcm_s16le" : "pcm_f32le", 2, 48000);
               /* Capture recovery/profile changes keep this payload instance alive. */
               if (first_start) {
                 notify("PBS - Made By Seregonwar\n"
@@ -641,6 +654,7 @@ int main(int argc, char **argv) {
       if (!strcmp(argv[i], "moduledump")) continue;
       if (!strcmp(argv[i], "nocontroller")) continue;
       if (!strcmp(argv[i], "noaudio")) { audio_mode = 0; continue; }
+      if (!strcmp(argv[i], "audio32")) { audio_s16 = 0; continue; }
       if (!strcmp(argv[i], "720p")) { automatic_resolution = 0; serve_args[4] = "12"; serve_args[8] = "1280"; serve_args[9] = "720"; continue; }
       if (!strcmp(argv[i], "1080p")) { automatic_resolution = 0; serve_args[4] = "12"; serve_args[8] = "1920"; serve_args[9] = "1080"; continue; }
       if (!strcmp(argv[i], "1440p") || !strcmp(argv[i], "2k")) { automatic_resolution = 0; serve_args[4] = "11"; serve_args[8] = "2560"; serve_args[9] = "1440"; continue; }

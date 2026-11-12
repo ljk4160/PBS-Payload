@@ -8,6 +8,17 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix5.4（本 fork 的增强版）— 2026-11-12
+
+### 音频改为 16 位 PCM：每位观众省下 1.5 Mbps
+
+- 实测：720p60 视频 3.3 Mbps 的同时，**音频 PCM f32 占 3.08 Mbps**（48 kHz 立体声），
+  几乎和视频一样多；4 个观众时上行要同时发 4 份。
+- 采集到的浮点样本在上行前转成 `int16`，`/config.json` 的 audio 描述改为
+  `pcm_s16le`（bits 字段同步为 16）；查看器本来就支持该格式解码，无需改动。
+- 每位观众的音频带宽从 3.08 Mbps 降到 **1.54 Mbps**；需要原样浮点时用
+  `avserve … audio32` 启动参数关闭。
+
 ## v0.4.0-beta5-fix5.3（本 fork 的增强版）— 2026-11-12
 
 ### 新接口：`GET /log` 实时查看 inject.txt
