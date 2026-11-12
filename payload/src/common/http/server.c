@@ -753,11 +753,20 @@ static void *client_thread(void *arg) {
   if (!strcmp(method, "GET") && !strcmp(path, "/")) reply(fd, "text/html; charset=utf-8", PBS_H264_HTML, sizeof PBS_H264_HTML - 1);
   else if (!strcmp(method, "GET") && !strcmp(path, "/banner.png")) {
     /* The banner is optional branding: without it the viewer drops the corner
-     * logo on its own, so answer 404 instead of an empty image. */
+     * logo on its own, so answer with a 1x1 transparent PNG (a 404 here just
+     * adds a failed-request line to every browser console). */
     if (PBS_BANNER_LEN) reply(fd, "image/png", PBS_BANNER_BYTES, PBS_BANNER_LEN);
     else {
-      const char missing[] = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
-      send_all(fd, missing, sizeof missing - 1);
+      /* No banner embedded in this build. Answer with a 1x1 transparent PNG
+       * instead of a 404: the viewer drops the <img> on error, but a 404 shows
+       * up in every browser console as a failed request. */
+      static const unsigned char blank[] = {
+          0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x0d,0x49,0x48,0x44,0x52,
+          0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x01,0x08,0x06,0x00,0x00,0x00,0x1f,0x15,0xc4,
+          0x89,0x00,0x00,0x00,0x0a,0x49,0x44,0x41,0x54,0x78,0x9c,0x63,0x00,0x01,0x00,0x00,
+          0x05,0x00,0x01,0x0d,0x0a,0x2d,0xb4,0x00,0x00,0x00,0x00,0x49,0x45,0x4e,0x44,0xae,
+          0x42,0x60,0x82};
+      reply(fd, "image/png", (const char *)blank, sizeof blank);
     }
   }
   else if (!strncmp(path,"/input/",7)) input_route(fd,method,path,request,used);

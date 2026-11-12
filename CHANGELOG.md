@@ -8,6 +8,17 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix4.5（本 fork 的增强版）— 2026-11-12
+
+### 控制台噪音清理
+
+- `/banner.png` 在没有内嵌 banner 的构建里不再返回 404，改为 1×1 透明 PNG。
+  查看器本来就会在 `onerror` 里移除该 `<img>`，但 404 会在每个浏览器控制台留下
+  一条 failed request。
+- 说明：音频仍使用 `ScriptProcessorNode`（浏览器会打印 deprecation 警告）。
+  查看器走明文 HTTP，而 `AudioWorklet` 需要安全上下文（HTTPS/localhost），
+  因此这里不能用它；换成 HTTPS 后才能切。
+
 ## v0.4.0-beta5-fix4.4（本 fork 的增强版）— 2026-11-12
 
 ### 固件 12.40（`0x12400009`）分辨率修复
