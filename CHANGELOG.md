@@ -8,6 +8,11 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-fix82 — 2026-11-12
+
+- 键位说明卡片：删掉“截屏”条目（原 P 键那条），`kmCapture` 从 i18n 一并移除。
+- 虚拟手柄触摸板键的字符由「触」改为 **T**（位值仍为 `0x100000`，与键盘 T 一致）。
+
 ## v0.4.0-beta5-fix7.9（本 fork 的增强版）— 2026-11-12
 
 ### ⧉ 键改为触摸板点击键
