@@ -425,6 +425,10 @@ void pbs_h264_server_stop(void) {
   pbs_input_stop();
 }
 static void stream(int fd, int low_latency) {
+  /* A viewer that cannot absorb 2 s worth of frames is not coming back;
+   * dropping it frees the worker slot and the encoder ring for everybody. */
+  struct timeval media_timeout = {2, 0};
+  setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &media_timeout, sizeof media_timeout);
   HTTP_TRACE("stream entered\n");
   const char *header = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n";
   if (send_all(fd, header, strlen(header))) { HTTP_TRACE("stream header send failed\n"); return; }
@@ -476,6 +480,8 @@ static void stream(int fd, int low_latency) {
     if (error) break;
   }
   pthread_mutex_unlock(&live.lock);
+  FILE *lf = fopen("/data/pbs/inject.txt", "a");
+  if (lf) { fprintf(lf, "viewer detached (send failed or timed out)\n"); fclose(lf); }
   pbs_video_free(copy, capacity);
 }
 static void audio_stream(int fd) {
@@ -778,6 +784,16 @@ static void *client_thread(void *arg) {
   int media = 0;
   int no_delay = 1;
   setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &no_delay, sizeof no_delay);
+  /* Reap viewers that vanished without closing (closed lid, dropped Wi-Fi):
+   * keepalive probes start after 10 s idle and give up after ~25 s. */
+  int keepalive = 1;
+  setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &keepalive, sizeof keepalive);
+#ifdef TCP_KEEPIDLE
+  int keep_idle = 10, keep_intvl = 5, keep_cnt = 3;
+  setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &keep_idle, sizeof keep_idle);
+  setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &keep_intvl, sizeof keep_intvl);
+  setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &keep_cnt, sizeof keep_cnt);
+#endif
   int send_buffer = 65536;
   setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &send_buffer, sizeof send_buffer);
   struct timeval timeout = {5, 0};

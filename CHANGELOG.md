@@ -8,6 +8,20 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix6.1（本 fork 的增强版）— 2026-11-12
+
+### 观看端超时自动断开
+
+- 媒体连接（`/frames`）的发送超时从 5 秒收紧到 **2 秒**：一个连续 2 秒吃不进
+  数据的观看端不可能恢复，直接断开并释放它的 worker 槽与编码器环形缓冲。
+- 所有连接启用 **TCP keepalive**（idle 10 s、间隔 5 s、3 次探测 ≈ 25 秒判定死亡），
+  合盖/掉 Wi-Fi 这类“没有 FIN 就消失”的观看端会被内核回收，不再一直占着
+  `clients` 计数。
+- 断开时在 `inject.txt` 写一行 `viewer detached (send failed or timed out)`，
+  方便确认是哪个观看端被回收。
+- 浏览器侧原本已有超时处理（watchdog 判定 stall 后 `controller.abort()` 并取消
+  reader），这次补的是服务端那一半。
+
 ## v0.4.0-beta5-fix6.0（本 fork 的增强版）— 2026-11-12
 
 ### 槽占用时改为递增退避（30 s → 5 min）
