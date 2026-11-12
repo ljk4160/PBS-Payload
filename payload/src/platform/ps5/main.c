@@ -22,20 +22,29 @@
  * its diagnostics through fprintf() into /data/pbs/inject.txt, so prefixing at
  * this single point covers the whole file. */
 static int pbs_log_fprintf(FILE *f, const char *fmt, ...) {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  struct tm lt;
-  time_t sec = tv.tv_sec;
-  localtime_r(&sec, &lt);
-  char stamp[40];
-  size_t n = strftime(stamp, sizeof stamp, "%Y-%m-%d %H:%M:%S", &lt);
-  n += (size_t)snprintf(stamp + n, sizeof stamp - n, ".%03d ", (int)(tv.tv_usec / 1000));
-  if (n > sizeof stamp) n = sizeof stamp;
-  fwrite(stamp, 1, n, f);
+  /* Prefix one timestamp per line, not per call: some diagnostics build a line
+   * from many small fprintf() calls (hex dumps), and stamping each fragment
+   * produced lines like "13:12:45.477 Audio first packet bytes=… 13:12:45.523 00…". */
+  static int at_line_start = 1;
+  if (at_line_start) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    struct tm lt;
+    time_t sec = tv.tv_sec;
+    localtime_r(&sec, &lt);
+    char stamp[40];
+    size_t n = strftime(stamp, sizeof stamp, "%Y-%m-%d %H:%M:%S", &lt);
+    n += (size_t)snprintf(stamp + n, sizeof stamp - n, ".%03d ", (int)(tv.tv_usec / 1000));
+    if (n > sizeof stamp) n = sizeof stamp;
+    fwrite(stamp, 1, n, f);
+    at_line_start = 0;
+  }
   va_list ap;
   va_start(ap, fmt);
   const int r = vfprintf(f, fmt, ap);
   va_end(ap);
+  const size_t flen = strlen(fmt);
+  if (flen && fmt[flen - 1] == (char)10) at_line_start = 1;
   return r;
 }
 #define fprintf pbs_log_fprintf
