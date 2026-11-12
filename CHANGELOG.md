@@ -8,6 +8,15 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix6.3（本 fork 的增强版）— 2026-11-12
+
+### 日志行不再互相穿插
+
+- 服务端与采集线程同时写 `/data/pbs/inject.txt`，服务端用 `fprintf` 分多次 `write()`，
+  和 payload 的整行写入撞在一起会出现 `H.viewer detached …264 HTTP :9999`
+  这种半截行。
+- 改为单次 `write()` 且以换行开头，两个写入方各自成行，日志可直接阅读。
+
 ## v0.4.0-beta5-fix6.2（本 fork 的增强版）— 2026-11-12
 
 ### 修复：打开 `/log` 会把整个 payload 拖死

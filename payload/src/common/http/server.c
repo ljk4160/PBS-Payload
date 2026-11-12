@@ -480,8 +480,16 @@ static void stream(int fd, int low_latency) {
     if (error) break;
   }
   pthread_mutex_unlock(&live.lock);
-  FILE *lf = fopen("/data/pbs/inject.txt", "a");
-  if (lf) { fprintf(lf, "viewer detached (send failed or timed out)\n"); fclose(lf); }
+  {
+    /* One write(), starting on a fresh line: the payload writes this same file
+     * from another thread with several write() calls per line. */
+    int lf = open("/data/pbs/inject.txt", O_WRONLY | O_APPEND | O_CREAT, 0666);
+    if (lf >= 0) {
+      static const char note[] = "\nviewer detached (send failed or timed out)\n";
+      (void)!write(lf, note, sizeof note - 1);
+      close(lf);
+    }
+  }
   pbs_video_free(copy, capacity);
 }
 static void audio_stream(int fd) {
