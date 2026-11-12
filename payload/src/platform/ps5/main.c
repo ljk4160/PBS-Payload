@@ -106,7 +106,8 @@ static int applied_bitrate_kbps;
 /* Start() 0x81950008 = the encoder slot for this feature is still owned by a
  * dying session. A fresh open a second later usually succeeds, so retry the
  * whole open a couple of times before giving up. */
-static int start_retry_left;
+static int start_slot_busy;   /* Start() reported 0x81950008 */
+static int start_retry_done;   /* full reopens already spent on it */
 static int applied_bitrate_kbps;
 /* Last videoOutMode reported by the console: 0x10 means the source only
  * produces 1080p, so 1440p/2160p requests can never open. */
@@ -368,7 +369,7 @@ static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int secon
   if (audio_mode == 2 && !pbs_audio_open(f, ctx, &audio, capture_feature, 0)) audio.publish = 1;
   long rc = capture_call_fast(ctx, start, (uint64_t[6]){handle, 0, 0, 0, 0, 0});
   fprintf(f, "Start() -> %s\n", fmt_rc(rc));
-  if (rc != LONG_MIN && (uint32_t)rc == 0x81950008u && serving) start_retry_left = 2;
+  if (rc != LONG_MIN && (uint32_t)rc == 0x81950008u && serving) start_slot_busy = 1;
   if (serving && native_rate_config && requested_video_bitrate > 30000000 &&
       rc != LONG_MIN && (int32_t)(uint32_t)rc < 0 && !ctx->asserted) {
     fprintf(f, "Start rejected at requested bitrate=%u; bitrate and QP remain unchanged\n",
@@ -818,10 +819,23 @@ avopen_retry:;
     pbs_inject_t ctx;
     capture_call_uncertain = 0;
     capture_audio_unclosed = 0;
-    if (pbs_inject_begin(argv[2], &ctx)) {
-      fprintf(f, "begin failed errno=%d\n", errno);
-      fclose(f);
-      return 1;
+    {
+      int begin_ok = 0;
+      for (int attempt = 0; attempt < 3; ++attempt) {
+        if (!pbs_inject_begin(argv[2], &ctx)) { begin_ok = 1; break; }
+        const int err = errno;
+        fprintf(f, "begin failed errno=%d (attempt %d/3)\n", err, attempt + 1);
+        /* 17 = EEXIST: the killed instance has not released its target-side
+         * channel yet. Anything else is not worth waiting for. */
+        if (err != 17) break;
+        usleep(800000);
+      }
+      if (!begin_ok) {
+        FILE *br = open_report("inject.txt", "a");
+        if (br) { fprintf(br, "injection unavailable: restart the console before retrying\n"); fclose(br); }
+        fclose(f);
+        return 1;
+      }
     }
     unsigned char native_request[0x400];
     uint32_t native_usage = argc > 5 ? (uint32_t)strtoul(argv[5], NULL, 0) : 2;
@@ -1143,10 +1157,10 @@ avopen_cleanup:;
       if (rr) { fprintf(rr, "OpenVideo failed at %ux%u; retrying once at 1080p\n", retry_width, retry_height); fclose(rr); }
       goto avopen_retry;
     }
-    if (start_retry_left > 0 && clear_ok && !ctx.asserted) {
-      start_retry_left--;
+    if (start_slot_busy && start_retry_done < 2 && clear_ok && !ctx.asserted) {
+      start_slot_busy = 0; start_retry_done++;
       FILE *sr = open_report("inject.txt", "a");
-      if (sr) { fprintf(sr, "Start slot busy; reopening after 1 s (retries left %d)\n", start_retry_left); fclose(sr); }
+      if (sr) { fprintf(sr, "Start slot busy; reopening after 1 s (attempt %d/2)\n", start_retry_done); fclose(sr); }
       usleep(1000000);
       goto avopen_retry;
     }

@@ -8,6 +8,21 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix4.9（本 fork 的增强版）— 2026-11-12
+
+### 修复 fix4.8 引入的重开死循环
+
+- **问题**：fix4.8 在每次 `Start` 失败时都把重试计数重置为 2，于是“失败→重开→
+  再失败→再重置”，变成每 1 秒无限重开（日志里出现连续的
+  `Start slot busy; reopening after 1 s (retries left 1)`）。反复重建注入通道
+  之后目标进程侧残留，后续注入直接 `begin failed errno=17`（EEXIST），表现为
+  “彻底启动不了”。
+- **修复**：改为 `start_slot_busy` 标记 + `start_retry_done` 计数，**每个进程最多
+  重开 2 次**，用完即退出。
+- **注入通道加退避**：`pbs_inject_begin` 返回 EEXIST 时间隔 0.8 秒重试，最多 3 次；
+  仍失败则写 `injection unavailable: restart the console before retrying` 并退出，
+  不再空转。
+
 ## v0.4.0-beta5-fix4.8（本 fork 的增强版）— 2026-11-12
 
 ### 启动失败修复：`Start() 0x81950008` 自动重试
