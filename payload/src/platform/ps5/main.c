@@ -991,7 +991,7 @@ avopen_retry:;
           fprintf(f, "Preflight videoOutMode unavailable; keeping requested profile\n");
         }
         if (capture_call_uncertain || ctx.asserted) {
-          fprintf(f, "Preflight videoOutMode interrupted/asserted; stopping capture\n");
+          fprintf(f, "Preflight videoOutMode interrupted/asserted; stopping capture; restart console before retry\n");
           (void)pbs_ps5_worker_shutdown(f);
           pbs_inject_end(&ctx);
           fclose(f);
@@ -1023,7 +1023,14 @@ avopen_retry:;
       uint32_t resolution = requested_resolution;
       unsigned char *params = scratch_zero + 8;
       const int exact_profile = capture_firmware == layout->firmware;
-      if (exact_profile && pbs_ps5_apply_request_initializers(
+      /* On FW 9.40 and FW 5.50 (issue #12) the constructor-built request
+       * is rejected with 0x81950001, while the synthetic request from
+       * beta.3 opens on the same console. Select that known working path
+       * before the first open; a rejected OpenVideo must not be retried
+       * in this execution. */
+      const int native_initializers = exact_profile &&
+          capture_firmware != 0x09400008u && capture_firmware != 0x05500008u;
+      if (native_initializers && pbs_ps5_apply_request_initializers(
                                params, avcap->request_size, rp)) {
         fprintf(f, "Native request initializer application failed; refusing incomplete exact profile\n");
         (void)pbs_ps5_worker_shutdown(f);
@@ -1039,9 +1046,10 @@ avopen_retry:;
       if (mode_begin < rp->image.offset)
         memset(params + mode_begin, 0, rp->image.offset - mode_begin);
       fprintf(f, "Native request source=%s template-found=%d reuse-disabled applied-initializers=%u\n",
-              exact_profile ? "firmware-constructor" : "synthetic-family-fallback",
+              native_initializers ? "firmware-constructor" :
+              exact_profile ? "synthetic-constructor-fallback" : "synthetic-family-fallback",
               native_template_found,
-              exact_profile ? (unsigned)rp->initializer_count : 0u);
+              native_initializers ? (unsigned)rp->initializer_count : 0u);
       /* Constructor constants establish the firmware-native nested request
        * descriptors.  Caller-owned fields are deliberately written after
        * them so runtime choices cannot be replaced by constructor defaults. */

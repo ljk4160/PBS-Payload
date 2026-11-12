@@ -3,10 +3,37 @@
 Notable changes to PBS Payload. `VERSION` at the repository root holds the
 numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 
+
 # 更新日志（中文）
 
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
+
+## v0.4.0-fix83 — 2026-11-12
+
+### 合并上游 + 本轮整理
+
+- 合并上游 5 个提交（seregonwar）：PS5 5.50 / 9.40 改用已验证的合成请求，
+  避免构造请求被拒（`0x81950001`）；日志新增 `synthetic-constructor-fallback`。
+- 本轮包含的内容（详见下方各条）：低延迟模式与实测延迟、按观众限制积压、
+  自适应码率（仅“自动”档）、音频 IMA ADPCM（384 kbps）、16 位音频回退、
+  `/log` 实时日志（尾部窗口读取 + 每行时间戳）、观众超时回收（2 s 发送超时 +
+  TCP keepalive）、编码器槽占用时的退避重试、重注入改为 SIGTERM 优雅替换、
+  `viewers` 真实观众计数、Profile 切换不再锁死控件。
+- 虚拟手柄：PS = `0x10000`（4 帧脉冲，已确认）；Create/Share 不在
+  `ScePadButtonDataOffset` 中，原 ⧉ 键改为触摸板点击（`0x100000`，显示 T）；
+  键位说明移除“截屏”条目。
+
+## Unreleased
+
+### PS5 capture
+
+- Build FW 5.50 (`0x05500008`) requests with the proven synthetic path instead
+  of the firmware constructor constants. The exact profile from the dump is
+  kept for geometry, but hardware reported in issue #12 rejects the
+  constructor-built request with `0x81950001` on every attempt — the same
+  signature FW 9.40 showed before the beta.3 synthetic request was adopted.
+  The runtime log now says `synthetic-constructor-fallback` for both firmwares.
 
 ## v0.4.0-fix82 — 2026-11-12
 
@@ -530,6 +557,7 @@ PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号
 `prospero-llvm-config` 需要 `llvm-config-23` 在 PATH 中（复制 llvm-config.exe
 并重命名）；lld 按 argv0 分发驱动，`bin/prospero-lld` 需指向内置 ELF driver
 的 `win/lld.exe`；产物通过 `tools/verify_ps5_elf.py` 校验。
+
 
 ## v0.4.0-beta.2 — 2026-11-07
 
