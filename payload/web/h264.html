@@ -751,7 +751,12 @@ if(vpOverlay){
     const btn=e.target.closest('.vp-btn,.vp-key');
     if(btn){
       const mask=Number(btn.dataset.mask)||0;
-      if(mask){const v=vpVirt();if(v)v.buttons|=mask;vpKick();}
+      if(mask===131072){
+        /* PS (home) is a system key: the console expects a tap, not a held
+         * button, and a held bit gets swallowed. Send a 4-frame pulse. */
+        window.pbsVpPulse={mask:131072,frames:4};
+        vpKick();
+      } else if(mask){const v=vpVirt();if(v)v.buttons|=mask;vpKick();}
       btn.classList.add('pressed');
       vpPointers.set(e.pointerId,{el:btn,mask:mask});
       try{btn.setPointerCapture(e.pointerId);}catch(err){}

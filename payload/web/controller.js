@@ -75,6 +75,10 @@
    if(mouseX||mouseY){s.rx=Math.max(0,Math.min(255,128+mouseX*6));s.ry=Math.max(0,Math.min(255,128+mouseY*6));mouseX=mouseY=0;}
   }
   if(virt.buttons)s.buttons|=virt.buttons;
+  if(window.pbsVpPulse){
+    if(window.pbsVpPulse.frames-->0)s.buttons|=window.pbsVpPulse.mask;
+    else window.pbsVpPulse=null;
+  }
   if(virt.lx!==128||virt.ly!==128){s.lx=virt.lx;s.ly=virt.ly;}
   if(virt.rx!==128||virt.ry!==128){s.rx=virt.rx;s.ry=virt.ry;}
   s.rx=Math.round(s.rx);s.ry=Math.round(s.ry);
