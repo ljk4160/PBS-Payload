@@ -103,6 +103,9 @@ static char stream_failure[96];
 static int live_profile_ready;
 static int bitrate_after_start;
 static int applied_bitrate_kbps;
+/* Last videoOutMode reported by the console: 0x10 means the source only
+ * produces 1080p, so 1440p/2160p requests can never open. */
+static uint32_t last_video_mode;
 
 static const char *fmt_rc(long rc);
 
@@ -795,6 +798,8 @@ avopen_retry:;
       notify("PBS: 1440p capture unavailable on this firmware; select 1080p or 2160p");
       return 1;
     }
+    int retry_lower = 0; int retry_width = width; int retry_height = height;
+    static int open_retry_done;
     int open_attempted = 0;
     int opened_session = 0;
     live_profile_ready = 0;
@@ -1042,6 +1047,7 @@ avopen_retry:;
         fprintf(f, "video output mode could not be written\n");
         goto avopen_cleanup;
       }
+      last_video_mode = video_mode;
       fprintf(f, "Params videoOutMode=0x%x\n", video_mode);
     }
     if (native_template_found)
@@ -1058,6 +1064,11 @@ avopen_retry:;
     if (rc==LONG_MIN || ctx.asserted) owned.uncertain=1;
     else if ((int32_t)(uint32_t)rc>=0) owned_session_closed=0;
     fprintf(f, "OpenVideo() -> %s%s\n", fmt_rc(rc), ctx.asserted ? " [ASSERT]" : "");
+    /* 1440p/2160p cannot open when the console only renders 1080p;
+     * retry once at 1080p instead of quarantining the session. */
+    if ((int32_t)(uint32_t)rc < 0 && height > 1080 && !open_retry_done) {
+      retry_lower = 1; retry_width = width; retry_height = height;
+    }
     /* Venc propagates this code from several distinct failures. Preserve the
      * actual request and resolved export fingerprints instead of guessing a
      * resolution/bitrate downgrade. These observers issue no remote calls. */
@@ -1119,6 +1130,13 @@ avopen_cleanup:;
       fprintf(f, "OpenVideo failure quarantined; no automatic reopen in this payload execution\n");
     pbs_inject_end(&ctx);
     fclose(f);
+    if (retry_lower) {
+      retry_lower = 0; open_retry_done = 1;
+      width = 1920; height = 1080; capture_feature = 12;
+      FILE *rr = open_report("inject.txt", "a");
+      if (rr) { fprintf(rr, "OpenVideo failed at %ux%u; retrying once at 1080p\n", retry_width, retry_height); fclose(rr); }
+      goto avopen_retry;
+    }
     /* Reconfigure only after closing handles, stopping the resource request,
      * clearing its callback and balancing our Initialize reference. */
     if (changing_profile && !live_profile_ready) {
@@ -1136,6 +1154,12 @@ avopen_cleanup:;
         automatic_resolution = 0;
         previous_profile = (pbs_capture_profile){width, height, capture_feature};
         width = next.width; height = next.height; capture_feature = next.feature;
+        /* The console told us it only renders 1080p; asking avcap2 for more
+         * always returns 0x81950008 on this profile table. Clamp instead of
+         * failing every reopen after a bitrate change. */
+        if (last_video_mode == 0x10u && height > 1080) {
+          width = 1920; height = 1080; capture_feature = 12;
+        }
         changing_profile = 1;
       }
     }

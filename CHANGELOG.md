@@ -8,6 +8,19 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix4.4（本 fork 的增强版）— 2026-11-12
+
+### 固件 12.40（`0x12400009`）分辨率修复
+
+- **1440p/2160p 在该固件上必定打不开**：`OpenVideo` 稳定返回 `0x81950008`
+  （日志中 4 次 1440p 全部失败，同一台机器 1080p 可连续跑 469 秒 / 12.29 Mbps）。
+- **失败后自动降 1080p 重试一次**：过去直接 `OpenVideo failure quarantined`，
+  整个 payload 执行期不再尝试；现在记录失败尺寸并以 1080p（feature 12）重开一次，
+  `inject.txt` 会写 `OpenVideo failed at 2560x1440; retrying once at 1080p`。
+- **按主机 `videoOutMode` 钳制请求**：缓存最近一次读到的 `videoOutMode`，当它为
+  `0x10`（主机只输出 1080p）时，网页选择 1440p/2160p 会被直接钳到 1080p，避免
+  每次改码率触发的重开都撞进同一个失败。
+
 ## v0.4.0-beta5-fix4.3（本 fork 的增强版）— 2026-11-12
 
 在 fix0.4 基础上继续的界面 / 输入 / 串流修复，全部改动在 12.00 实机验证。
