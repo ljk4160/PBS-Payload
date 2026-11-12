@@ -155,10 +155,11 @@ static int write_pad(void *unused, const pbs_input_state *state) {
     if (lf) { fprintf(lf, "virtual PS: buttons=0x%x rc=%d\n", state->buttons, rc); fclose(lf); }
   }
   if (rc) {
-    /* The ID is known, so final teardown remains safe, but do not reuse this
-     * device for a new viewer session after its data path failed. */
-    pad.unhealthy = 1;
-    log_result("VirtualDeviceInsertData", rc);
+    /* One rejected state (an unsupported button bit) must not quarantine the
+     * whole device: that is what dropped the controller as soon as an unknown
+     * key was probed. Skip the frame and keep the session alive. */
+    static int rejected_logged;
+    if (!rejected_logged) { log_result("VirtualDeviceInsertData", rc); rejected_logged = 1; }
   }
   return rc;
 }
