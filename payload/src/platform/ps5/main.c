@@ -1227,13 +1227,22 @@ avopen_cleanup:;
       if (rr) { fprintf(rr, "OpenVideo failed at %ux%u; retrying once at 1080p\n", retry_width, retry_height); fclose(rr); }
       goto avopen_retry;
     }
+    if (start_slot_busy) {
+      /* Five quick attempts failed: the encoder slot is held by a dead session.
     if (start_slot_busy && start_retry_done < 5 && clear_ok && !ctx.asserted) {
       start_slot_busy = 0; start_retry_done++;
-      /* Encoder slots are per feature: if the same one keeps rejecting Start,
-       * try the other resolution once before giving up. */
-      FILE *sr = open_report("inject.txt", "a");
-      if (sr) { fprintf(sr, "Start slot busy; reopening (attempt %d/5, %dx%d)\n", start_retry_done, width, height); fclose(sr); }
+      FILE *qr = open_report("inject.txt", "a");
+      if (qr) { fprintf(qr, "Start slot busy; reopening (attempt %d/5)\n", start_retry_done); fclose(qr); }
       usleep(start_retry_done >= 3 ? 2000000u : 1000000u);
+      goto avopen_retry;
+    }
+       * Wait 30 s and try again instead of exiting - the slot often frees once
+       * the previous owner (game / Remote Play) finishes tearing down. */
+      start_slot_busy = 0; start_retry_done = 0;
+      FILE *sr = open_report("inject.txt", "a");
+      if (sr) { fprintf(sr, "Encoder slot busy after 5 attempts; retrying in 30 s\n"); fclose(sr); }
+      notify("PBS: encoder slot busy - will retry in 30 s (restart the console if it persists)");
+      usleep(30000000u);
       goto avopen_retry;
     }
     /* Reconfigure only after closing handles, stopping the resource request,

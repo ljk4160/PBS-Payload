@@ -8,6 +8,18 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix5.8（本 fork 的增强版）— 2026-11-12
+
+### 启动失败不再直接退出，改为持续等待编码器槽
+
+- 现场日志：`OpenVideo ok` → `Start 0x81950008` 连续失败，
+  5 次快速重试打完后 payload 退出，主机上从外面看就是“启动不了”。
+- 现在：5 次快速重试（1 s / 1 s / 2 s / 2 s / 2 s）仍失败时，不再退出——
+  打印 `Encoder slot busy after 5 attempts; retrying in 30 s` 并在主机上弹通知
+  `PBS: encoder slot busy - will retry in 30 s`，然后每 30 秒重试一次。
+  槽一旦被释放（游戏/Remote Play 退出），串流会自动接上，不需要重新注入。
+- 若 10 分钟内一直失败，说明编码器槽真的死了，需要重启主机。
+
 ## v0.4.0-beta5-fix5.7（本 fork 的增强版）— 2026-11-12
 
 ### 修复：请求 720p 却打开 1080p、以及分辨率/码率控件永久变灰
