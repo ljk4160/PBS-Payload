@@ -235,6 +235,7 @@ static void apply_profile_and_bitrate(int fd, const char *path) {
   if (!live.profiles_enabled) { code = 501; message = "This capture backend does not support resolution changes"; }
   else if (live.rec || live.rec_pending) { code = 409; message = "Stop recording before changing the profile"; }
   else if (live.profile_changing) { code = 409; message = "A profile change is already in progress"; }
+  else if (live.restart_request) { code = 409; message = "A restart is already pending"; }
   else if (!bitrate_changed && !height_changed) { message = "Already active"; }
   else {
     live.bitrate_kbps = kbps;

@@ -109,6 +109,7 @@ static int applied_bitrate_kbps;
 static int audio_s16 = 1;   /* 16-bit PCM: 1.5 Mbps instead of 3 Mbps per viewer */
 static int start_slot_busy;   /* Start() reported 0x81950008 */
 static int start_retry_done;   /* full reopens already spent on it */
+static int alt_profile_tried;   /* tried the other feature slot once */
 static int applied_bitrate_kbps;
 /* Last videoOutMode reported by the console: 0x10 means the source only
  * produces 1080p, so 1440p/2160p requests can never open. */
@@ -383,6 +384,7 @@ static int capture_stream(FILE *f, pbs_inject_t *ctx, uint64_t handle, int secon
   long rc = capture_call_fast(ctx, start, (uint64_t[6]){handle, 0, 0, 0, 0, 0});
   fprintf(f, "Start() -> %s\n", fmt_rc(rc));
   if (rc != LONG_MIN && (uint32_t)rc == 0x81950008u && serving) start_slot_busy = 1;
+  if (rc != LONG_MIN && (int32_t)(uint32_t)rc >= 0) { start_retry_done = 0; alt_profile_tried = 0; }
   if (serving && native_rate_config && requested_video_bitrate > 30000000 &&
       rc != LONG_MIN && (int32_t)(uint32_t)rc < 0 && !ctx->asserted) {
     fprintf(f, "Start rejected at requested bitrate=%u; bitrate and QP remain unchanged\n",
@@ -1171,11 +1173,18 @@ avopen_cleanup:;
       if (rr) { fprintf(rr, "OpenVideo failed at %ux%u; retrying once at 1080p\n", retry_width, retry_height); fclose(rr); }
       goto avopen_retry;
     }
-    if (start_slot_busy && start_retry_done < 2 && clear_ok && !ctx.asserted) {
+    if (start_slot_busy && start_retry_done < 5 && clear_ok && !ctx.asserted) {
       start_slot_busy = 0; start_retry_done++;
+      /* Encoder slots are per feature: if the same one keeps rejecting Start,
+       * try the other resolution once before giving up. */
+      if (start_retry_done == 3 && !alt_profile_tried) {
+        alt_profile_tried = 1;
+        if (height == 720) { width = 1920; height = 1080; capture_feature = 12; }
+        else if (height == 1080) { width = 1280; height = 720; capture_feature = 12; }
+      }
       FILE *sr = open_report("inject.txt", "a");
-      if (sr) { fprintf(sr, "Start slot busy; reopening after 1 s (attempt %d/2)\n", start_retry_done); fclose(sr); }
-      usleep(1000000);
+      if (sr) { fprintf(sr, "Start slot busy; reopening (attempt %d/5, %dx%d)\n", start_retry_done, width, height); fclose(sr); }
+      usleep(start_retry_done >= 3 ? 2000000u : 1000000u);
       goto avopen_retry;
     }
     /* Reconfigure only after closing handles, stopping the resource request,

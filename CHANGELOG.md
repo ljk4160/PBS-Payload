@@ -8,6 +8,18 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix5.5（本 fork 的增强版）— 2026-11-12
+
+### 编码器槽卡死：重试更久 + 换 feature 槽
+
+- 现场日志：窗口内 26 次 `OpenVideo ok`、**25 次 `Start() 0x81950008`**、只有 1 次
+  `Start` 成功，之后画面停在旧帧（status 的 fps 因均值稀释逐渐下降）。
+- 重试从“2 次 / 1 秒”提升到 **5 次**：前两次间隔 1 秒，第 3 次起 2 秒；第 3 次时
+  自动切换到另一个 feature 槽（720p ↔ 1080p）再试；`Start` 成功后计数复位，
+  下次卡槽仍会重试。
+- `/capture/apply` 增加去抖：已有 `restart_request` 挂起时返回 409
+  “A restart is already pending”，避免连续点“应用”堆积重开把槽打满。
+
 ## v0.4.0-beta5-fix5.4（本 fork 的增强版）— 2026-11-12
 
 ### 音频改为 16 位 PCM：每位观众省下 1.5 Mbps
