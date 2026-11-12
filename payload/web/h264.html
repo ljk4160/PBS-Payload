@@ -166,7 +166,7 @@ dialog::backdrop{background:rgba(0,0,0,.8)}.preview-heading{display:flex;align-i
   <div class="vp-stick" data-stick="r" style="--x:87%;--y:80%"><i></i></div>
 </div></div>
 
-<div class="dock"><div class="dock-row"><button id="record">Record</button><button id="snapshot">Save snapshot</button><label class="res-inline" for="resolution"><span data-i18n="resolution">Resolution</span><select id="resolution" aria-label="Stream resolution"></select></label><label data-i18n="bitrateCap">Bitrate cap <select id="bitrate"><option value="0" data-i18n="bitrateAuto">Auto (60 Mbps)</option><option value="20000">20 Mbps</option><option value="10000">10 Mbps</option><option value="8000">8 Mbps</option><option value="6000">6 Mbps</option><option value="4000">4 Mbps</option><option value="2000">2 Mbps</option></select></label><button id="apply-resolution">Apply</button><a class="btn" id="download" hidden>Download recording</a><span class="dock-spacer"></span><button id="virtual-pad" class="vp-toggle" aria-pressed="false" data-i18n="virtualPad" hidden>虚拟手柄</button><button id="connect-controller" data-i18n="connectController">Connect controller</button><button id="disconnect-controller" hidden data-i18n="disconnectController">Disconnect controller</button><span id="controller-info" role="status" class="ctrl-state" hidden></span><label class="lang-inline"><span>Language</span><select id="lang"><option value="en">English</option><option value="zh">中文</option></select></label></div><div class="dock-row dock-sub"><label data-i18n="audioDelay">Audio delay <input id="delay" type="range" min="0" max="400" step="10" value="120"> <span id="delayval">120 ms</span></label><span class="sys-actions"><button id="sys-standby" data-i18n="sysStandby">待机</button><button id="sys-reboot" data-i18n="sysReboot">重启</button><button id="sys-poweroff" class="danger" data-i18n="sysPoweroff">关机</button></span><span id="profile-info" aria-live="polite" hidden></span></div></div><section id="controller-controls" hidden></section>
+<div class="dock"><div class="dock-row"><button id="record">Record</button><button id="snapshot">Save snapshot</button><label class="res-inline" for="resolution"><span data-i18n="resolution">Resolution</span><select id="resolution" aria-label="Stream resolution"></select></label><label data-i18n="bitrateCap">Bitrate cap <select id="bitrate"><option value="0" data-i18n="bitrateAuto">Auto (60 Mbps)</option><option value="20000">20 Mbps</option><option value="10000">10 Mbps</option><option value="8000">8 Mbps</option><option value="6000">6 Mbps</option><option value="4000">4 Mbps</option><option value="2000">2 Mbps</option></select></label><button id="apply-resolution">Apply</button><a class="btn" id="download" hidden>Download recording</a><span class="dock-spacer"></span><button id="virtual-pad" class="vp-toggle" aria-pressed="false" data-i18n="virtualPad" hidden>虚拟手柄</button><button id="connect-controller" data-i18n="connectController">Connect controller</button><button id="disconnect-controller" hidden data-i18n="disconnectController">Disconnect controller</button><span id="controller-info" role="status" class="ctrl-state" hidden></span><label class="lang-inline"><span>Language</span><select id="lang"><option value="en">English</option><option value="zh">中文</option></select></label></div><div class="dock-row dock-sub"><label data-i18n="audioDelay">Audio delay <input id="delay" type="range" min="0" max="400" step="10" value="120"> <span id="delayval">120 ms</span></label><button id="low-latency" class="vp-toggle" aria-pressed="false" data-i18n="lowLatency">低延迟</button><span class="sys-actions"><button id="sys-standby" data-i18n="sysStandby">待机</button><button id="sys-reboot" data-i18n="sysReboot">重启</button><button id="sys-poweroff" class="danger" data-i18n="sysPoweroff">关机</button></span><span id="profile-info" aria-live="polite" hidden></span></div></div><section id="controller-controls" hidden></section>
 <section class="keymap" aria-label="Controller key map"><h3 data-i18n="keymapTitle">Keyboard &amp; controller keys</h3><div class="keymap-grid"><div class="keymap-item"><kbd>↑ ↓ ← →</kbd><span data-i18n="kmDpad"></span></div><div class="keymap-item"><kbd>W A S D</kbd><span data-i18n="kmMove"></span></div><div class="keymap-item"><kbd>I J K L</kbd><span data-i18n="kmLook"></span></div><div class="keymap-item"><kbd>空格 / X</kbd><span data-i18n="kmCross"></span></div><div class="keymap-item"><kbd>C</kbd><span data-i18n="kmCircle"></span></div><div class="keymap-item"><kbd>Z</kbd><span data-i18n="kmSquare"></span></div><div class="keymap-item"><kbd>V</kbd><span data-i18n="kmTriangle"></span></div><div class="keymap-item"><kbd>Q / E</kbd><span data-i18n="kmL1"></span></div><div class="keymap-item"><kbd>R / F</kbd><span data-i18n="kmL2"></span></div><div class="keymap-item"><kbd>Enter</kbd><span data-i18n="kmOptions"></span></div><div class="keymap-item"><kbd>Backspace</kbd><span data-i18n="kmPs"></span></div><div class="keymap-item"><kbd>P</kbd><span data-i18n="kmCapture"></span></div><div class="keymap-item"><kbd>T</kbd><span data-i18n="kmTouch"></span></div><div class="keymap-item"><kbd>右键拖动</kbd><span data-i18n="kmMouse"></span></div><div class="keymap-item"><kbd>ESC / Ctrl+Alt</kbd><span data-i18n="kmExit"></span></div></div></section><details class="storage-settings"><summary data-i18n="recordingStorage">Recording storage</summary><label><span data-i18n="consoleDirectory">Console directory</span> <input id="record-directory" type="text" maxlength="255" autocomplete="off" spellcheck="false"></label><button id="save-directory" data-i18n="saveDestination">Save destination</button><p id="storage-info" role="status" data-i18n="loadingDestination">Loading destination...</p></details>
 <dialog id="preview-dialog"><div class="preview-heading"><strong id="preview-title" data-i18n="previewTitle">Preview</strong><button id="close-preview">Close preview</button></div><p id="preview-status" role="status"></p><div id="preview-content"></div><a id="preview-download" class="btn" download>Download</a></dialog>
 <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-description"><h2 id="delete-title" data-i18n="deleteTitle">Delete recording?</h2><p id="delete-description"></p><form method="dialog"><button value="cancel" autofocus data-i18n="deleteCancel">Cancel</button><button value="delete" data-i18n="deleteConfirm">Delete recording</button></form></dialog>
@@ -178,7 +178,7 @@ const PBS_I18N={
  zh:{
   title:'PBS Studio · 主机直播',brand:'PBS Studio',platform:'主机直播 · 硬件 H.264',
   record:'录制',recordStop:'停止录制',snapshot:'保存截图',download:'下载录像',
-  volumeLbl:'音量',muteBtn:'静音',unmuteBtn:'取消静音',audioDelay:'音频延迟',bitrateCap:'码率上限',bitrateAuto:'自动 (60 Mbps)',keymapTitle:'手柄 / 键盘按键说明',kmDpad:'方向键 = 十字键',kmMove:'W A S D = 左摇杆（移动）',kmLook:'I J K L = 右摇杆（视角）',kmCross:'空格 / X = ✕ 确定',kmCircle:'C = ○ 取消（ESC 只用于退出全屏）',kmSquare:'Z = □ 方块',kmTriangle:'V = △ 三角',kmL1:'Q / E = L1 / R1',kmL2:'R / F = L2 / R2',kmOptions:'回车 = Options',kmPs:'P = PS 键',kmCapture:'Backspace = 截屏键',kmTouch:'T = 触摸板',kmMouse:'鼠标右键拖动 = 转视角',kmExit:'ESC / Ctrl+Alt = 退出全屏',virtualPad:'虚拟手柄',sysStandby:'待机',sysReboot:'重启',sysPoweroff:'关机',sysConfirm:'确认执行？主机会断开连接。',sysSent:'指令已发送，等待主机响应…',
+  volumeLbl:'音量',muteBtn:'静音',unmuteBtn:'取消静音',audioDelay:'音频延迟',bitrateCap:'码率上限',bitrateAuto:'自动 (60 Mbps)',keymapTitle:'手柄 / 键盘按键说明',kmDpad:'方向键 = 十字键',kmMove:'W A S D = 左摇杆（移动）',kmLook:'I J K L = 右摇杆（视角）',kmCross:'空格 / X = ✕ 确定',kmCircle:'C = ○ 取消（ESC 只用于退出全屏）',kmSquare:'Z = □ 方块',kmTriangle:'V = △ 三角',kmL1:'Q / E = L1 / R1',kmL2:'R / F = L2 / R2',kmOptions:'回车 = Options',kmPs:'P = PS 键',kmCapture:'Backspace = 截屏键',kmTouch:'T = 触摸板',kmMouse:'鼠标右键拖动 = 转视角',kmExit:'ESC / Ctrl+Alt = 退出全屏',virtualPad:'虚拟手柄',sysStandby:'待机',lowLatency:'低延迟',sysReboot:'重启',sysPoweroff:'关机',sysConfirm:'确认执行？主机会断开连接。',sysSent:'指令已发送，等待主机响应…',
   resolution:'分辨率',apply:'应用',lang:'语言',
   remoteController:'远程手柄',connectController:'连接手柄',disconnectController:'断开手柄',
   controllerHelp:'点击此区域启用键盘控制：WASD 移动，IJKL 视角，方向键导航；X/空格 = 叉，C = 圆圈，Z = 方块，V = 三角，Q/E = L1/R1，R/F = L2/R2，回车 = Options，Backspace = PS 键，T = 触摸板点击。在视频上按住鼠标右键转动视角。支持浏览器标准手柄。',
@@ -205,7 +205,7 @@ const PBS_I18N={
  en:{
   title:'PBS Studio · Console live',brand:'PBS Studio',platform:'Console live · Hardware H.264',
   record:'Record',recordStop:'Stop recording',snapshot:'Save snapshot',download:'Download recording',
-  volumeLbl:'Volume',muteBtn:'Mute',unmuteBtn:'Unmute',audioDelay:'Audio delay',bitrateCap:'Bitrate cap',bitrateAuto:'Auto (60 Mbps)',keymapTitle:'Keyboard & controller keys',kmDpad:'Arrows = D-pad',kmMove:'W A S D = Left stick (move)',kmLook:'I J K L = Right stick (look)',kmCross:'Space / X = Cross',kmCircle:'C = Circle (ESC no longer cancels)',kmSquare:'Z = Square',kmTriangle:'V = Triangle',kmL1:'Q / E = L1 / R1',kmL2:'R / F = L2 / R2',kmOptions:'Enter = Options',kmPs:'P = PS button',kmCapture:'Backspace = Capture',kmTouch:'T = Touchpad',kmMouse:'Right-drag on video = look',kmExit:'ESC / Ctrl+Alt = leave fullscreen',virtualPad:'Virtual pad',sysStandby:'Standby',sysReboot:'Restart',sysPoweroff:'Power off',sysConfirm:'Continue? The console will drop the connection.',sysSent:'Command sent; waiting for the console…',
+  volumeLbl:'Volume',muteBtn:'Mute',unmuteBtn:'Unmute',audioDelay:'Audio delay',bitrateCap:'Bitrate cap',bitrateAuto:'Auto (60 Mbps)',keymapTitle:'Keyboard & controller keys',kmDpad:'Arrows = D-pad',kmMove:'W A S D = Left stick (move)',kmLook:'I J K L = Right stick (look)',kmCross:'Space / X = Cross',kmCircle:'C = Circle (ESC no longer cancels)',kmSquare:'Z = Square',kmTriangle:'V = Triangle',kmL1:'Q / E = L1 / R1',kmL2:'R / F = L2 / R2',kmOptions:'Enter = Options',kmPs:'P = PS button',kmCapture:'Backspace = Capture',kmTouch:'T = Touchpad',kmMouse:'Right-drag on video = look',kmExit:'ESC / Ctrl+Alt = leave fullscreen',virtualPad:'Virtual pad',sysStandby:'Standby',lowLatency:'Low latency',sysReboot:'Restart',sysPoweroff:'Power off',sysConfirm:'Continue? The console will drop the connection.',sysSent:'Command sent; waiting for the console…',
   resolution:'Resolution',apply:'Apply',lang:'Language',
   remoteController:'Remote controller',connectController:'Connect controller',disconnectController:'Disconnect controller',
   controllerHelp:'Click this area for keyboard control: WASD moves, IJKL looks, arrows navigate; X/Space = Cross, C = Circle, Z = Square, V = Triangle, Q/E = L1/R1, R/F = L2/R2, Enter = Options, Backspace = PS, T = Touchpad click. Hold the right mouse button over the video to look. Standard gamepads are supported when available in your browser.',
@@ -241,13 +241,18 @@ function applyLang(){
  document.getElementById('platform').textContent=t('platform');
  for(const el of document.querySelectorAll('[data-i18n]')){
   const k=el.getAttribute('data-i18n');if(!PBS_I18N[pbsLang][k]&&!PBS_I18N.en[k])continue;
-  if(el.tagName==='LABEL'){ // rebuild label keeping inner controls intact
+  if(el.tagName==='LABEL'){
+  // Refresh the leading text node only. Rebuilding innerHTML recreated the
+  // <select>, so every cached reference (bitrateSel) pointed at a detached
+  // node and its value stayed at 0 - the Apply request then always asked for
+  // kbps=0.
   const ctrl=el.querySelector('input,select');
   if(!ctrl)continue;
-  const idx=el.innerHTML.indexOf('<'+ctrl.tagName.toLowerCase());
-  const ctrlHtml=idx>=0?el.innerHTML.slice(idx):'';
-  el.innerHTML=t(k)+' '+ctrlHtml;
-  if(ctrl.id==='delay')document.getElementById('delayval').textContent=Number(ctrl.value)+t('msUnit');
+  const text=t(k)+' ';
+  let node=el.firstChild;
+  while(node&&node.nodeType!==3)node=node.nextSibling;
+  if(node)node.nodeValue=text;else el.insertBefore(document.createTextNode(text),ctrl);
+  if(ctrl.id==='delay'){const dv=document.getElementById('delayval');if(dv)dv.textContent=Number(ctrl.value)+t('msUnit');}
   if(ctrl.id==='bitrate')bitrateAutoText();
  } else el.textContent=t(k);
  }
@@ -298,6 +303,16 @@ async function fetchWithTimeout(path,options={},ms=5000){
  }
  finally{clearTimeout(timer);}
 }
+let clockOffset=null, frameDelayMs=null;
+window.pbsLatency=()=>frameDelayMs;
+async function syncPbsClock(){
+  const t0=Date.now();
+  try{
+    const r=await fetch('/status.json',{cache:'no-store'});const j=await r.json();const t1=Date.now();
+    if(typeof j.now_ms==='number')clockOffset=j.now_ms-(t0+t1)/2;
+  }catch(e){}
+}
+syncPbsClock();setInterval(syncPbsClock,15000);
 let hiddenSince=document.hidden?Date.now():0;
 let profileBusy=false,profileOptions='';
 const resolution=document.getElementById('resolution'),applyResolution=document.getElementById('apply-resolution'),profileInfo=document.getElementById('profile-info');
@@ -323,7 +338,7 @@ async function refreshProfiles(){
 }
 applyResolution.onclick=async()=>{
  applyResolution.disabled=resolution.disabled=bitrateSel.disabled=true;
- try{const r=await fetchWithTimeout('/capture/apply?height='+encodeURIComponent(resolution.value)+'&kbps='+encodeURIComponent(bitrateSel.value),{method:'POST'});const body=await r.json();if(!r.ok)throw new Error(body.message||window.pbsT('resFail'));await refreshProfiles();}
+ try{const r=await fetchWithTimeout('/capture/apply?height='+encodeURIComponent(document.getElementById('resolution').value)+'&kbps='+encodeURIComponent(document.getElementById('bitrate').value),{method:'POST'});const body=await r.json();if(!r.ok)throw new Error(body.message||window.pbsT('resFail'));await refreshProfiles();}
  catch(e){profileInfo.textContent=e.message;applyResolution.disabled=resolution.disabled=bitrateSel.disabled=false;}
 };
 let recordingDirectory='';
@@ -505,9 +520,14 @@ async function play(){
      // stutter users see. Only hard-seek on a real desync (>1.2 s); small lag
      // is absorbed by a gentle playback-rate ramp instead.
      const behind=end-video.currentTime;
-     if(!viewerPaused&&(video.currentTime<start||behind>1.2))video.currentTime=Math.max(start,end-0.25);
-     document.getElementById('latency').textContent='Playback buffer: '+Math.round(Math.max(0,behind)*1000)+' ms';
-     if(!viewerPaused)video.playbackRate=behind>1.2?1:behind>0.45?1.08:behind>0.15?1.03:behind<0.02?0.98:1;
+     const seekLimit=lowLatency?0.45:1.2;
+     if(!viewerPaused&&(video.currentTime<start||behind>seekLimit))video.currentTime=Math.max(start,end-(lowLatency?0.06:0.25));
+     const bufferText='Playback buffer: '+Math.round(Math.max(0,behind)*1000)+' ms';
+     const latMs=window.pbsLatency?window.pbsLatency():null;
+     const latText=latMs===null?'':' · Delay: '+latMs+' ms';
+     const chip=document.getElementById('latency');
+     if(chip.textContent!==bufferText+latText)chip.textContent=bufferText+latText;
+     if(!viewerPaused)video.playbackRate=behind>seekLimit?1:(lowLatency?(behind>0.2?1.15:behind>0.06?1.05:behind<0.02?0.98:1):(behind>0.45?1.08:behind>0.15?1.03:behind<0.02?0.98:1));
      if(video.paused&&!viewerPaused&&!attemptingPlay&&end-video.currentTime>=0.08&&!stopped){
       attemptingPlay=true;
       video.play().catch(error=>{if(!signal.aborted){
@@ -533,12 +553,12 @@ async function play(){
    const bytes=new Uint8Array(pending.length+value.length);
    bytes.set(pending);bytes.set(value,pending.length);pending=bytes;
    let offset=0;
-   while(pending.length-offset>=8){
+   while(pending.length-offset>=12){
     const view=new DataView(pending.buffer,pending.byteOffset+offset);
-    const size=view.getUint32(0),pts=view.getUint32(4);
+    const size=view.getUint32(0),pts=view.getUint32(4),sentMs=view.getUint32(8);
     if(!size||size>2097152)throw new Error('Invalid video frame size');
-    if(pending.length-offset<8+size)break;
-    const sample=H264Mux.accessUnit(pending.subarray(offset+8,offset+8+size));
+    if(pending.length-offset<12+size)break;
+    const sample=H264Mux.accessUnit(pending.subarray(offset+12,offset+12+size));
     // Each browser session starts at zero. Unwrap the 32-bit wire clock so
     // a long-running payload cannot jump backwards after ~13 hours.
     if(previousPts!==null){
@@ -556,7 +576,11 @@ async function play(){
     if(sample.key)lastKeyframe=Date.now();
     pendingSample={sample,time:timeline};
     lastFrame=Date.now();
-    offset+=8+size;
+    if(sentMs&&clockOffset!==null){
+      const d=((Date.now()+clockOffset-sentMs)>>>0);
+      if(d<5000)frameDelayMs=Math.round(d);
+    }
+    offset+=12+size;
     drain();
     if(!video.paused&&Date.now()-lastPresented<2000){const live='Live from '+(config.platform||'console');if(message.textContent!==live)message.textContent=live;}
     if(signal.aborted)break;
@@ -738,6 +762,16 @@ if(vpOverlay){
 }
 window.addEventListener('pointerup',e=>vpRelease(e.pointerId),true);
 window.addEventListener('pointercancel',e=>vpRelease(e.pointerId),true);
+/* Low-latency mode: shrink the playback cushion for a smaller glass-to-glass
+ * delay at the cost of jitter tolerance. */
+const lowLatBtn=document.getElementById('low-latency');
+let lowLatency=localStorage.getItem('pbs-lowlat')==='1';
+const applyLowLat=()=>{
+  if(lowLatBtn){lowLatBtn.classList.toggle('on',lowLatency);lowLatBtn.setAttribute('aria-pressed',lowLatency?'true':'false');}
+  localStorage.setItem('pbs-lowlat',lowLatency?'1':'0');
+};
+if(lowLatBtn)lowLatBtn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();lowLatency=!lowLatency;applyLowLat();});
+applyLowLat();
 const sysSend=(action)=>{
   const msg=document.getElementById('message');
   fetch('/system/'+action,{method:'POST',cache:'no-store'}).then(()=>{

@@ -8,6 +8,25 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix4.6（本 fork 的增强版）— 2026-11-12
+
+### 延迟：低延迟模式 + 实测延迟
+
+- **低延迟开关**（dock 内，绿描边表示开启）：把跟播阈值从 1.2 s 收紧到 0.45 s，
+  硬跳目标从 `end-0.25` 收紧到 `end-0.06`，落后 0.2 s 以上用 `playbackRate 1.15`
+  追帧。默认关闭（平滑优先），状态存 localStorage。
+- **实测延迟显示**：`/frames` 的帧头由 8 字节扩为 12 字节，新增服务端发送时刻
+  （单调毫秒）；`/status.json` 增加 `now_ms`。查看器用一次往返估算时钟偏移，
+  header 上显示 `Playback buffer: 120 ms · Delay: 186 ms`（帧到达时刻减服务端发送时刻）。
+
+### 修复
+
+- **码率上限恒被提交为 `kbps=0`**：`applyLang()` 在切换/初始化语言时用
+  `innerHTML` 重建带 `data-i18n` 的 label，`<select id="bitrate">` 因此被替换成
+  新节点，页面早先缓存的引用指向已脱离文档的旧节点，其 `value` 永远是 `0`。
+  现改为只更新 label 的前导文本节点，控件本身不再被重建；Apply 处理函数也改为
+  每次按 id 重新取控件值。
+
 ## v0.4.0-beta5-fix4.5（本 fork 的增强版）— 2026-11-12
 
 ### 控制台噪音清理

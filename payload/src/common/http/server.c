@@ -453,11 +453,14 @@ static void stream(int fd) {
     if (f->seq != next - 1 || (!synced && !f->key)) continue;
     synced = 1;
     size_t size = f->len;
-    unsigned char *grown = pbs_video_grow(copy, capacity, size + 8);
+    unsigned char *grown = pbs_video_grow(copy, capacity, size + 12);
     if (!grown) { HTTP_TRACE("stream allocation failed\n"); break; }
     copy = grown;
-    if (size + 8 > capacity) capacity = pbs_video_capacity(size + 8);
-    uint32_t packet[2] = {htonl((uint32_t)size), htonl(f->pts)};
+    if (size + 12 > capacity) capacity = pbs_video_capacity(size + 12);
+    /* 12-byte header: payload size, 90 kHz capture timestamp, server send time
+     * in monotonic milliseconds (same clock as status.json now_ms) so the
+     * viewer can measure one-way delay instead of guessing from the buffer. */
+    uint32_t packet[3] = {htonl((uint32_t)size), htonl(f->pts), htonl((uint32_t)milliseconds())};
     memcpy(copy, packet, sizeof packet);
     memcpy(copy + sizeof packet, f->data, size);
     pthread_mutex_unlock(&live.lock);
@@ -578,8 +581,8 @@ static void status(int fd) {
   char body[1024];
   pthread_mutex_lock(&live.lock);
   double seconds = (milliseconds() - live.started) / 1000.0;
-  int n = snprintf(body, sizeof body, "{\"backend\":\"h264\",\"parked\":%s,\"width\":%d,\"height\":%d,\"frames\":%llu,\"bytes\":%llu,\"fps\":%.1f,\"kbps\":%.1f,\"clients\":%d,\"recording\":%s,\"recording_name\":\"%s\",\"recording_frames\":%llu,\"recording_bytes\":%llu,\"recording_seconds\":%.1f,\"recording_error\":%s,\"audio_chunks\":%llu,\"audio_bytes\":%llu,\"audio_kbps\":%.1f,\"audio_codec\":\"%s\"}",
-      parked ? "true" : "false", live.width, live.height, (unsigned long long)live.seq, (unsigned long long)live.bytes, seconds > 0 ? live.seq/seconds : 0,
+  int n = snprintf(body, sizeof body, "{\"backend\":\"h264\",\"now_ms\":%llu,\"parked\":%s,\"width\":%d,\"height\":%d,\"frames\":%llu,\"bytes\":%llu,\"fps\":%.1f,\"kbps\":%.1f,\"clients\":%d,\"recording\":%s,\"recording_name\":\"%s\",\"recording_frames\":%llu,\"recording_bytes\":%llu,\"recording_seconds\":%.1f,\"recording_error\":%s,\"audio_chunks\":%llu,\"audio_bytes\":%llu,\"audio_kbps\":%.1f,\"audio_codec\":\"%s\"}",
+      (unsigned long long)(uint32_t)milliseconds(), parked ? "true" : "false", live.width, live.height, (unsigned long long)live.seq, (unsigned long long)live.bytes, seconds > 0 ? live.seq/seconds : 0,
       seconds > 0 ? live.bytes*8/seconds/1000 : 0, live.clients, live.rec || live.rec_pending ? "true" : "false", live.rec_name,
       (unsigned long long)live.rec_frames, (unsigned long long)live.rec_bytes,
       live.fps > 0 ? (double)live.rec_frames/live.fps : 0, live.rec_error ? "true" : "false",
