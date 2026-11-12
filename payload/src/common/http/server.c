@@ -421,7 +421,7 @@ void pbs_h264_server_stop(void) {
   pthread_mutex_unlock(&live.lock);
   pbs_input_stop();
 }
-static void stream(int fd) {
+static void stream(int fd, int low_latency) {
   HTTP_TRACE("stream entered\n");
   const char *header = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n";
   if (send_all(fd, header, strlen(header))) { HTTP_TRACE("stream header send failed\n"); return; }
@@ -447,7 +447,11 @@ static void stream(int fd) {
      * Dropping at six frames (100 ms at 60 fps) needlessly broke reference
      * chains and triggered repeated expensive IDRs during menu movement.
      * Resynchronize only once the producer actually overwrites unread data. */
-    if (live.seq - next >= SLOTS) { next = live.seq; synced = 0; live.key_request = 1; }
+    /* Bound the per-viewer backlog instead of waiting for the 64-slot ring to
+     * wrap (~1 s of latency that never drains back down). Low-latency viewers
+     * accept a keyframe every time they fall ~100 ms behind. */
+    const uint64_t backlog_limit = low_latency ? 6u : 24u;
+    if (live.seq - next >= backlog_limit) { next = live.seq; synced = 0; live.key_request = 1; }
     frame_t *f = &live.frames[next % SLOTS];
     next++;
     if (f->seq != next - 1 || (!synced && !f->key)) continue;
@@ -746,7 +750,8 @@ static void *client_thread(void *arg) {
   }
   int rtp_port = 0, consumed = 0;
   if (sscanf(path, "/rtp/video?port=%d%n", &rtp_port, &consumed) != 1 || path[consumed] || rtp_port < 1024 || rtp_port > 65534) rtp_port = 0;
-  if (!strcmp(path, "/frames") || !strcmp(path, "/audio") || rtp_port) {
+  const int frames_lowlat = !strncmp(path, "/frames?lowlat=1", 15);
+  if (!strncmp(path, "/frames", 7) || !strcmp(path, "/audio") || rtp_port) {
     pthread_mutex_lock(&live.lock);
     media = live.media_clients < 8;
     if (media) live.media_clients++;
@@ -775,7 +780,7 @@ static void *client_thread(void *arg) {
   else if (!strncmp(path,"/input/",7)) input_route(fd,method,path,request,used);
   else if (!strcmp(method, "GET") && !strcmp(path, "/config.json")) configuration(fd);
   else if (!strcmp(method, "GET") && !strcmp(path, "/status.json")) status(fd);
-  else if (!strcmp(method, "GET") && !strcmp(path, "/frames")) stream(fd);
+  else if (!strcmp(method, "GET") && !strncmp(path, "/frames", 7)) stream(fd, frames_lowlat);
   else if (!strcmp(method, "GET") && rtp_port) rtp_stream(fd,rtp_port);
   else if (!strcmp(method, "GET") && !strcmp(path, "/audio")) audio_stream(fd);
   else if (!strcmp(method,"GET") && !strcmp(path,"/recording/settings")) recording_settings(fd,NULL);
