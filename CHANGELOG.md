@@ -8,6 +8,15 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix5.2（本 fork 的增强版）— 2026-11-12
+
+### 修复：点一次“应用”后码率下拉永久变灰
+
+- 原因：Apply 处理函数在开始请求时禁用三个控件，但只在 `catch` 分支恢复；
+  成功路径没有人恢复，于是码率下拉（以及分辨率下拉、应用按钮）从此一直 disabled。
+- 修复：改为 `finally` 恢复，并在 `refreshProfiles()` 里按 `profileBusy || recording`
+  同步码率下拉的禁用状态（真正切换期间仍然禁用，切换完成后自动恢复）。
+
 ## v0.4.0-beta5-fix5.1（本 fork 的增强版）— 2026-11-12
 
 ### 码率档位重排；自动档才自适应

@@ -331,6 +331,8 @@ async function refreshProfiles(){
  const disabled=profileBusy||recording;
  if(resolution.disabled!==disabled)resolution.disabled=disabled;
  if(applyResolution.disabled!==disabled)applyResolution.disabled=disabled;
+ const bitrateBox=document.getElementById('bitrate');
+ if(bitrateBox&&bitrateBox.disabled!==disabled)bitrateBox.disabled=disabled;
  const text=c.profile_error?(c.profile_error_height?window.pbsT('profileError',{h:c.profile_error_height,cur:c.height}):''):profileBusy?window.pbsT('applyingProfile'):recording?window.pbsT('stopBeforeProfile'):window.pbsT('activeProfile',{h:c.height});
  profileInfo.hidden=!(c.profile_error||profileBusy||recording);
  if(profileInfo.textContent!==text)profileInfo.textContent=text;
@@ -340,7 +342,14 @@ applyResolution.onclick=async()=>{
  applyResolution.disabled=resolution.disabled=bitrateSel.disabled=true;
  abrDrops=0;abrStreak=0;
  try{const r=await fetchWithTimeout('/capture/apply?height='+encodeURIComponent(document.getElementById('resolution').value)+'&kbps='+encodeURIComponent(selectedKbps()),{method:'POST'});const body=await r.json();if(!r.ok)throw new Error(body.message||window.pbsT('resFail'));await refreshProfiles();}
- catch(e){profileInfo.textContent=e.message;applyResolution.disabled=resolution.disabled=bitrateSel.disabled=false;}
+ catch(e){profileInfo.textContent=e.message;}
+ finally{
+  /* Re-enable on success too: the old code only restored the controls in the
+   * catch branch, so after one successful Apply the bitrate select stayed
+   * disabled forever. refreshProfiles() will disable again while a profile
+   * change is actually in flight. */
+  if(!profileBusy)applyResolution.disabled=resolution.disabled=bitrateSel.disabled=false;
+ }
 };
 let recordingDirectory='';
 async function refreshStorage(){
