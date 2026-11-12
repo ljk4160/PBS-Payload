@@ -8,6 +8,23 @@ numeric version; a release tag may add a suffix (`v0.2.0-beta.1`).
 PBS Payload 的重要变更。仓库根目录的 `VERSION` 保存数字版本号；发布标签可以
 带后缀（如 `v0.2.0-beta.1`）。
 
+## v0.4.0-beta5-fix5.7（本 fork 的增强版）— 2026-11-12
+
+### 修复：请求 720p 却打开 1080p、以及分辨率/码率控件永久变灰
+
+- 现场 `config.json`：`width/height=1920x1080`，`requested_height=720`，
+  `profile_changing=true` —— 说明切换标记被“锁死”，页面因此把
+  分辨率/码率/应用全部禁用。
+- 根因一：fix5.5 的“换 feature 槽”会把 720p 请求改成 1080p 打开；
+  根因二：`pbs_h264_configure()` 只在 `profile_height == height` 时清除
+  `profile_changing`，实际开在 1080p 时条件不成立，标记永久为真。
+- 修复：
+  1. 移除自动换档，请求什么分辨率就重试什么分辨率；
+  2. `configure()` 无论实际开到哪个分辨率都结束切换状态，若与请求不符则记
+     `profile_error`（页面显示“切换失败：请求 Xp，当前 Yp”）；
+  3. `config.json` 增加 20 秒看门狗：`profile_changing` 卡住超过 20 秒自动
+     判失败并解锁，控件不会再被永久禁用。
+
 ## v0.4.0-beta5-fix5.6（本 fork 的增强版）— 2026-11-12
 
 ### 音频改用 IMA ADPCM：每位观众 1536 → 384 kbps

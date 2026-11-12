@@ -1231,11 +1231,6 @@ avopen_cleanup:;
       start_slot_busy = 0; start_retry_done++;
       /* Encoder slots are per feature: if the same one keeps rejecting Start,
        * try the other resolution once before giving up. */
-      if (start_retry_done == 3 && !alt_profile_tried) {
-        alt_profile_tried = 1;
-        if (height == 720) { width = 1920; height = 1080; capture_feature = 12; }
-        else if (height == 1080) { width = 1280; height = 720; capture_feature = 12; }
-      }
       FILE *sr = open_report("inject.txt", "a");
       if (sr) { fprintf(sr, "Start slot busy; reopening (attempt %d/5, %dx%d)\n", start_retry_done, width, height); fclose(sr); }
       usleep(start_retry_done >= 3 ? 2000000u : 1000000u);

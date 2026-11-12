@@ -58,6 +58,7 @@ static struct {
   int resume_request;
   int parked_listener;
   int profiles_enabled, profile_pending, profile_changing, profile_height, profile_error, profile_error_height;
+  uint64_t profile_started;
   unsigned profile_mask;
   uint64_t generation;
   FILE *rec;
@@ -88,7 +89,6 @@ static int wait_media(int fd, uint64_t generation, int audio) {
     !(n == 0 || (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR));
 }
 void pbs_h264_discontinuity(void) {
-  pthread_mutex_lock(&live.lock);
   live.generation++;
   if (live.rec) live.rec_headers_pending = 1;
   live.key_request = 1;
@@ -209,6 +209,7 @@ static void select_profile(int fd, const char *path) {
   else if (height == live.height) { message = "Resolution already active"; }
   else {
     live.profile_height = height; live.profile_pending = live.profile_changing = 1;
+    live.profile_started = milliseconds();
     live.profile_error = live.profile_error_height = 0; live.restart_request = 1;
   }
   pthread_mutex_unlock(&live.lock);
@@ -240,6 +241,7 @@ static void apply_profile_and_bitrate(int fd, const char *path) {
   else {
     live.bitrate_kbps = kbps;
     if (height_changed) { live.profile_height = height; live.profile_pending = live.profile_changing = 1;
+                          live.profile_started = milliseconds();
                           live.profile_error = live.profile_error_height = 0; }
     live.restart_request = 1;
   }
@@ -566,6 +568,15 @@ static void configuration(int fd) {
   const char *platform = "PS5";
 #endif
   pthread_mutex_lock(&live.lock);
+  /* Watchdog: a change that never completes must not latch the UI controls. */
+  if (live.profile_changing && live.profile_started &&
+      milliseconds() - live.profile_started > 20000u) {
+    live.profile_error = 1;
+    live.profile_error_height = live.profile_height;
+    live.profile_height = live.height;
+    live.profile_changing = 0;
+    live.profile_pending = 0;
+  }
   size_t used=1;resolutions[0]='[';
   const int heights[]={720,1080,1440,2160};
   for (unsigned i=0;i<4;i++) if (live.profiles_enabled && (live.profile_mask&pbs_capture_profile_bit(heights[i])))
@@ -964,7 +975,19 @@ int pbs_h264_server_start_at_rate(int port, int width, int height, int fps,
     live.started = milliseconds(); live.audio_started = 0; live.audio_generation++;
     live.last_keyframe_ms = live.last_key_request_ms = live.started;
     live.width = width; live.height = height; live.fps = fps;
-    if (live.profile_changing && live.profile_height == height) live.profile_changing = 0;
+    /* A profile change ends here whatever height we actually got: if the
+     * encoder came up on a different profile (slot recovery), report it as an
+     * error instead of leaving profile_changing latched - a latched flag
+     * disables the resolution/bitrate controls in the viewer forever. */
+    if (live.profile_changing) {
+      if (live.profile_height != height) {
+        live.profile_error = 1;
+        live.profile_error_height = live.profile_height;
+      }
+      live.profile_height = height;
+      live.profile_changing = 0;
+      live.profile_pending = 0;
+    }
     memcpy(live.sps, sps, sps_len); live.sps_len = sps_len;
     memcpy(live.pps, pps, pps_len); live.pps_len = pps_len;
     live.generation++; live.key_request = 1;
